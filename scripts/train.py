@@ -61,17 +61,22 @@ class ITNDataset(Dataset):
 
 
 class MLflowCallback(TrainerCallback):
-    """Логирует метрики в MLflow на каждом шаге."""
+    """Логирует метрики в MLflow на каждом шаге и по эпохам."""
     def __init__(self, mlflow):
         self.mlflow = mlflow
-        self.all_losses = []
 
     def on_log(self, args, state, control, logs=None, **kwargs):
         if logs:
             step = state.global_step
+            epoch = int(state.epoch) if state.epoch else 0
             for k, v in logs.items():
                 if isinstance(v, (int, float)):
                     self.mlflow.log_metric(k, v, step=step)
+                    self.mlflow.log_metric(f'{k}_epoch', v, step=epoch)
+
+    def on_epoch_end(self, args, state, control, **kwargs):
+        epoch = int(state.epoch) if state.epoch else 0
+        self.mlflow.log_metric('epoch', epoch, step=epoch)
 
 
 def generate_predictions(model, tokenizer, texts, max_len=128):
@@ -241,27 +246,27 @@ def main():
     train_result = trainer.train()
     elapsed = time.time() - start
 
-    # Per-epoch evaluation (after training, for each epoch checkpoint)
-    for epoch in range(1, args.epochs + 1):
-        # Load best model for this epoch if saved, or use current
-        acc, _ = evaluate_and_report(
-            model, tokenizer, val_texts, val_targets,
-            epoch, mlflow, out_dir
-        )
-        if mlflow:
-            mlflow.log_metric('test_accuracy', acc / 100, step=epoch)
-        print(f'  Epoch {epoch}: accuracy = {acc:.2f}%')
+    # Final evaluation
+    print(f'\nFinal evaluation...')
+    final_acc, _ = evaluate_and_report(
+        model, tokenizer, val_texts, val_targets,
+        args.epochs, mlflow, out_dir
+    )
+    if mlflow:
+        mlflow.log_metric('test_accuracy', final_acc / 100, step=args.epochs)
+    print(f'  Final accuracy: {final_acc:.2f}%')
 
-    # Training history plot
-    log_history = train_result.training_loss if hasattr(train_result, 'training_loss') else None
-    if log_history and mlflow:
-        fig, ax = plt.subplots(figsize=(8, 4))
-        ax.plot(log_history, 'o-', label='Train Loss')
-        ax.set_xlabel('Step'); ax.set_ylabel('Loss')
-        ax.set_title('Training Loss'); ax.legend()
-        plt.tight_layout()
-        mlflow.log_figure(fig, 'plots/training_loss.png')
-        plt.close()
+    # Training loss plot
+    if mlflow:
+        log_history = train_result.training_loss if hasattr(train_result, 'training_loss') else None
+        if isinstance(log_history, (list, tuple)):
+            fig, ax = plt.subplots(figsize=(8, 4))
+            ax.plot(log_history, 'o-', label='Train Loss')
+            ax.set_xlabel('Step'); ax.set_ylabel('Loss')
+            ax.set_title('Training Loss'); ax.legend()
+            plt.tight_layout()
+            mlflow.log_figure(fig, 'plots/training_loss.png')
+            plt.close()
 
     # Save model
     print(f'\nSaving to {out_dir}')
