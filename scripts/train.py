@@ -170,7 +170,10 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained('cointegrated/ruT5-small')
     model = AutoModelForSeq2SeqLM.from_pretrained('cointegrated/ruT5-small')
     model.config.tie_word_embeddings = False
+    dev = 'GPU' if torch.cuda.is_available() else 'CPU'
+    dev_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'
     print(f'  Params: {sum(p.numel() for p in model.parameters())/1e6:.0f}M')
+    print(f'  Device: {dev} ({dev_name})')
 
     print(f'\nLoading data: {args.data}')
     df = pl.read_ipc(args.data)
@@ -201,6 +204,7 @@ def main():
     train_ds = ITNDataset(train_texts, train_targets, tokenizer, args.max_len)
     val_ds = ITNDataset(val_texts, val_targets, tokenizer, args.max_len)
 
+    pin = torch.cuda.is_available()
     training_args = Seq2SeqTrainingArguments(
         output_dir=str(out_dir),
         num_train_epochs=args.epochs,
@@ -216,6 +220,8 @@ def main():
         generation_max_length=args.max_len,
         report_to='none',
         dataloader_num_workers=0,
+        dataloader_pin_memory=pin,
+        fp16=pin,
     )
 
     callbacks = []
