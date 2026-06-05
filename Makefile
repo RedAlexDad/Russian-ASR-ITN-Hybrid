@@ -7,6 +7,7 @@ include makefiles/config.mk
 include makefiles/help.mk
 include makefiles/docker.mk
 include makefiles/commands.mk
+include makefiles/local.mk
 
 # Цель по умолчанию
 .DEFAULT_GOAL := help
