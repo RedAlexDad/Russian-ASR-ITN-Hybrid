@@ -1,23 +1,31 @@
-"""EDA — анализ результатов нормализации."""
+"""
+EDA — анализ результатов нормализации.
+
+Два режима:
+  report_run(df)      — после run: статистика найденных чисел
+  report_evaluate(df) — после evaluate: accuracy, пропуски, примеры ошибок
+
+Использует эти же данные в src/eda.py для расширенного анализа
+с графиками (запускается через make eda).
+"""
 
 import re
-from collections import Counter
 
-from src.lexicon import lookup_word, is_ordinal_word
+from src.lexicon import is_ordinal_word, lookup_word
 
 
 def count_numbers(text):
-    """Считает цифровые токены в тексте."""
+    """Считает цифровые токены в тексте (последовательности цифр)."""
     return len(re.findall(r'\d+', text))
 
 
 def count_numeral_words(text):
-    """Считает слова-числительные в тексте."""
+    """Считает слова, которые являются числительными (по словарю)."""
     return sum(1 for w in text.split() if lookup_word(w) is not None or is_ordinal_word(w))
 
 
 def text_stats(text):
-    """Базовая статистика текста."""
+    """Базовая статистика одного текста: длина, токены, числа."""
     return {
         'length': len(text),
         'tokens': len(text.split()),
@@ -27,7 +35,7 @@ def text_stats(text):
 
 
 def report_run(df):
-    """EDA после run: сколько чисел найдено, распределение."""
+    """Выводит статистику после нормализации: сколько чисел найдено."""
     stats = df['answer'].apply(text_stats)
     total_digits = sum(s['digit_tokens'] for s in stats)
     total_numeral = sum(s['numeral_words'] for s in stats)
@@ -43,14 +51,18 @@ def report_run(df):
 
 
 def report_evaluate(df):
-    """EDA после evaluate: анализ ошибок."""
+    """Выводит статистику после оценки: accuracy, пропуски, лишние, ошибки."""
+
+    # Динамический импорт, чтобы избежать циклических зависимостей
+    from src.normalizer import normalize_text
+
     correct = 0
     wrong_examples = []
     total_gold = 0
     total_pred = 0
 
     for _, row in df.iterrows():
-        pred = __import__('src.normalizer', fromlist=['']).normalize_text(row['task_text'])
+        pred = normalize_text(row['task_text'])
         if pred == row['ground_truth']:
             correct += 1
         else:

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Проверка корректности Jupyter ноутбука.
+"""
+Проверка корректности Jupyter ноутбука.
 
 Использование:
   python scripts/validate_notebook.py notebooks/eda.ipynb
@@ -7,12 +8,16 @@
 Что проверяет:
   1. Файл существует и читается
   2. Валидный JSON (соответствует nbformat v4)
-  3. Все code-ячейки завершились без ошибок (если есть output)
-  4. Нет пустых code-ячеек (без кода)
-  5. Каждой code-ячейке предшествует markdown-ячейка
-  6. Присутствуют обязательные секции (по заголовкам)
+  3. Все code-ячейки завершились без ошибок (по output)
+  4. Нет пустых code-ячеек
+  5. Каждой code-ячейке предшествует markdown
+  6. Присутствуют все обязательные секции
   7. Используется Polars, а не Pandas
   8. Нет инлайн-датасетов (данные только из data/)
+
+Зачем нужно:
+  Автоматическая верификация ноутбука перед commit или сдачей задания.
+  Гарантирует, что ноутбук можно запустить от начала до конца без ошибок.
 """
 
 import json
@@ -20,6 +25,7 @@ import re
 import sys
 from pathlib import Path
 
+# Обязательные секции, которые должны быть в ноутбуке
 REQUIRED_SECTIONS = [
     "подготовка",
     "загрузка",
@@ -31,11 +37,13 @@ REQUIRED_SECTIONS = [
     "вывод",
 ]
 
+# Запрещённые импорты (pandas — используем Polars)
 FORBIDDEN_IMPORTS = [
     "import pandas",
     "from pandas",
 ]
 
+# Обязательные импорты
 REQUIRED_IMPORTS = [
     "import polars",
     "from polars",
@@ -59,11 +67,8 @@ def w(msg, *args, **kwargs):
     print(f"  \033[93m⚠ {msg}\033[0m".format(*args, **kwargs))
 
 
-def i(msg, *args, **kwargs):
-    print(f"  \033[94m→ {msg}\033[0m".format(*args, **kwargs))
-
-
 def validate(path):
+    """Запускает все проверки ноутбука, возвращает True/False."""
     path = Path(path)
     errors = 0
     warnings = 0
@@ -102,6 +107,7 @@ def validate(path):
     code_cells = [c for c in cells if c["cell_type"] == "code"]
     md_cells = [c for c in cells if c["cell_type"] == "markdown"]
 
+    has_errors = False
     for idx, cell in enumerate(code_cells):
         cell_num = idx + 1
         outputs = cell.get("outputs", [])
@@ -111,38 +117,33 @@ def validate(path):
                 evalue = out.get("evalue", "?")
                 e("[ячейка {}] Ошибка: {}: {}", cell_num, ename, evalue)
                 errors += 1
+                has_errors = True
 
         source = "".join(cell.get("source", []))
         if not source.strip():
             w("[ячейка {}] Пустая code-ячейка", cell_num)
             warnings += 1
 
-    if not any(
-        e_
-        for e_ in [
-            out
-            for c in code_cells
-            for out in c.get("outputs", [])
-            if out.get("output_type") == "error"
-        ]
-    ):
+    if not has_errors:
         o("Все code-ячейки без ошибок")
 
     # 4. Каждой code-ячейке предшествует markdown
+    warnings_code = 0
     prev_was_code = False
     for i, cell in enumerate(cells):
         if cell["cell_type"] == "code":
             if prev_was_code and i > 0:
                 w("[ячейка {}] Две code-ячейки подряд без markdown", i + 1)
                 warnings += 1
+                warnings_code += 1
             prev_was_code = True
         else:
             prev_was_code = False
-    o(
-        "Проверка чередования markdown/code пройдена"
-        if warnings == 0
-        else "Нарушения чередования"
-    )
+
+    if warnings_code == 0:
+        o("Проверка чередования markdown/code пройдена")
+    else:
+        o("Нарушения чередования")
 
     # 5. Обязательные секции (по заголовкам в markdown)
     md_sources = ["".join(c.get("source", [])) for c in md_cells]
@@ -166,23 +167,20 @@ def validate(path):
     for c in code_cells:
         all_source += "".join(c.get("source", [])) + "\n"
 
+    has_forbidden = False
     for forb in FORBIDDEN_IMPORTS:
         if forb in all_source:
             e("Запрещённый импорт: {}", forb)
             errors += 1
+            has_forbidden = True
 
-    if not any(forb in all_source for forb in FORBIDDEN_IMPORTS):
+    if not has_forbidden:
         o("Нет запрещённых импортов (pandas)")
 
     # 7. Есть обязательные импорты
-    for req in REQUIRED_IMPORTS:
-        if req not in all_source:
-            # проверяем частично
-            pass
-
     has_polars = "polars" in all_source
-    has_mpl = "matplotlib" in all_source or "import matplotlib" in all_source
-    has_sns = "seaborn" in all_source or "import seaborn" in all_source
+    has_mpl = "matplotlib" in all_source
+    has_sns = "seaborn" in all_source
 
     if has_polars:
         o("Polars используется")
@@ -203,17 +201,17 @@ def validate(path):
         warnings += 1
 
     # 8. Нет инлайн-датасетов (данные — только из data/)
-    bad_patterns = [
-        r'task_text\s*=\s*[\'"]',
-        r'ground_truth\s*=\s*[\'"]',
-    ]
-    for pat in bad_patterns:
+    has_inline = False
+    for pat in [r'task_text\s*=\s*[\'"]', r'ground_truth\s*=\s*[\'"]']:
         if re.search(pat, all_source):
-            w("Возможен инлайн-датасет (данные прямо в коде)")
-            warnings += 1
+            has_inline = True
             break
 
-    o("Данные загружаются из файлов (не инлайн)")
+    if has_inline:
+        w("Возможен инлайн-датасет (данные прямо в коде)")
+        warnings += 1
+    else:
+        o("Данные загружаются из файлов (не инлайн)")
 
     # Итог
     print()
