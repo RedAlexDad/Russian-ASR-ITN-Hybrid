@@ -154,48 +154,48 @@ MLflow UI позволяет:
 ## Чек-лист реализации
 
 ### Шаг 1: Установка и настройка
-- [ ] `pip install mlflow` в requirements.txt
-- [ ] Создать `makefiles/mlflow.mk`
-- [ ] `make mlflow-up` — запуск сервера
-- [ ] `make mlflow-down` — остановка сервера
-- [ ] `make mlflow-ui` — открыть браузер
-- [ ] `.gitignore: mlflow.db, mlflow-artifacts/`
+- [x] `pip install mlflow` в requirements.txt
+- [x] Создать `makefiles/mlflow.mk`
+- [x] `make mlflow-up` — запуск сервера
+- [x] `make mlflow-down` — остановка сервера
+- [x] `make mlflow-ui` — открыть браузер
+- [x] `.gitignore: mlflow.db, mlflow-artifacts/`
 
 ### Шаг 2: Интеграция в train.py
-- [ ] Импорт mlflow, set_tracking_uri, set_experiment
-- [ ] `start_run` с log_param всех гиперпараметров
-- [ ] Кастомный MLflowCallback для Seq2SeqTrainer
-- [ ] log_metric: train_loss, eval_loss, learning_rate
+- [x] Импорт mlflow, set_tracking_uri, set_experiment
+- [x] `start_run` с log_param всех гиперпараметров
+- [x] Кастомный MLflowCallback для Seq2SeqTrainer
+- [x] log_metric: train_loss, eval_loss, learning_rate
 
 ### Шаг 3: Оценка на тесте после эпохи
-- [ ] Функция `evaluate_on_test(model, tokenizer, test_data)`
-- [ ] Генерация предсказаний на test set
-- [ ] `classification_report` (sklearn) → log_text
-- [ ] Примеры IN→OUT (первые 20) → log_text
+- [x] Функция `evaluate_and_report(model, tokenizer, ...)`
+- [x] Генерация предсказаний на test set
+- [x] `classification_report` (sklearn) → log_text
+- [x] Примеры IN→OUT (первые 15) → log_text
 
 ### Шаг 4: Графики
-- [ ] Matplotlib: confusion matrix (цифры, не токены)
-- [ ] Matplotlib: accuracy по эпохам
-- [ ] Matplotlib: loss по steps (из history)
-- [ ] `mlflow.log_figure()` для каждого графика
+- [x] Matplotlib: confusion matrix (цифры, не токены)
+- [x] Matplotlib: accuracy по эпохам
+- [x] Matplotlib: training_loss график
+- [x] `mlflow.log_figure()` для каждого графика
 
 ### Шаг 5: Сохранение артефактов
-- [ ] `mlflow.log_artifacts("models/ruT5-itn", "model")`
-- [ ] `mlflow.log_artifacts("reports/", "reports")`
-- [ ] `mlflow.log_artifacts("plots/", "plots")`
-- [ ] Установка тегов: status, accuracy, model_name
+- [x] `mlflow.log_artifacts("models/ruT5-itn", "model")`
+- [x] `mlflow.log_text(report, "reports/...")`
+- [x] `mlflow.log_figure(fig, "plots/...")`
+- [x] Установка тегов: status, accuracy, model_name
 
 ### Шаг 6: Makefile цели
-- [ ] `make train-mlflow` — обучение + mlflow
-- [ ] `make mlflow-up` — запуск UI
-- [ ] `make mlflow-down` — остановка
-- [ ] `make mlflow-clean` — очистка БД + артефактов
+- [x] `make train / train-local` — mlflow по умолчанию
+- [x] `make mlflow-up` — запуск UI
+- [x] `make mlflow-down` — остановка
+- [x] `make mlflow-clean` — очистка БД + артефактов
 
 ### Шаг 7: Тестирование
-- [ ] `make mlflow-up && make train-mlflow EPOCHS=1 MAX_SAMPLES=200`
-- [ ] Проверить http://localhost:5000
-- [ ] Проверить артефакты в mlflow-artifacts/
-- [ ] Сравнить 2 запуска в UI
+- [x] `make mlflow-up && make train-local EPOCHS=1 MAX_SAMPLES=200`
+- [x] Проверить http://localhost:5001
+- [x] Проверить артефакты в mlflow-artifacts/
+- [x] Сравнить 2 запуска в UI
 
 ## Дерево файлов
 
@@ -212,10 +212,10 @@ reports/
 
 ## Критерии готовности
 
-- [ ] `make mlflow-up` запускает сервер на :5000
-- [ ] `make train-mlflow` логирует все метрики в MLflow
-- [ ] В UI видны: params, metrics, plots, reports, model artifacts
-- [ ] `make mlflow-down` чисто останавливает сервер
-- [ ] classification_report.txt содержит precision/recall/f1
-- [ ] confusion_matrix.png показывает путаницу цифр
-- [ ] Можно сравнить 2 запуска в UI
+- [x] `make mlflow-up` запускает сервер на :5001
+- [x] `make train` логирует все метрики в MLflow
+- [x] В UI видны: params, metrics, plots, reports, model artifacts
+- [x] `make mlflow-down` чисто останавливает сервер
+- [x] classification_report.txt содержит precision/recall/f1
+- [x] confusion_matrix.png показывает путаницу цифр
+- [x] Можно сравнить 2 запуска в UI
