@@ -53,7 +53,7 @@ def parse_number_group(tokens_data):
                 current += val
                 last_mag = mag
             else:
-                if compound > 0 or current > 0:
+                if True:
                     result.append(str(int(compound + current)))
                 compound = 0
                 current = val
