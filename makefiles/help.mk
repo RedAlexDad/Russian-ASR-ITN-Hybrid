@@ -36,6 +36,7 @@ help:
 	@printf "$(BLUE)  test-local$(NC)         Запустить тесты (pytest)\n"
 	@printf "$(BLUE)  eda-local$(NC)          EDA через .venv\n"
 	@printf "$(BLUE)  train-local$(NC)        Обучение ruT5:          $(YELLOW)make train-local EPOCHS=1$(NC)\n"
+	@printf "$(BLUE)  train-quick$(NC)       Быстрый тест за 2-3 мин: $(YELLOW)make train-quick$(NC)\n"
 	@printf "$(CYAN)╰──────────────────────────────────────────────────────────────$(NC)\n"
 	@echo ""
 	@printf "  $(YELLOW)переменные:$(NC)\n"

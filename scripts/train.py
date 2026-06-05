@@ -84,7 +84,9 @@ def main():
     parser.add_argument("--lr", type=float, default=5e-5, help="Learning rate")
     parser.add_argument("--batch-size", type=int, default=8, help="Batch size")
     parser.add_argument("--max-len", type=int, default=128, help="Max token length")
+    parser.add_argument("--max-samples", type=int, default=0, help="Limit samples (0=all)")
     parser.add_argument("--output", default="models/ruT5-itn", help="Output dir")
+    parser.add_argument("--quick", action="store_true", help="Quick mode: 200 samples, 1 epoch, max_len=32")
     args = parser.parse_args()
 
     print(f"Loading ruT5-small...")
@@ -103,6 +105,18 @@ def main():
     if train_df.height == 0:
         train_df = df
     print(f"  Clean rows for training: {train_df.height}")
+
+    # Quick mode: tiny subset, 1 epoch, short sequences
+    if args.quick:
+        print("  QUICK MODE: 200 samples, 1 epoch, max_len=32")
+        args.epochs = 1
+        args.max_len = 32
+        args.max_samples = 200
+        args.lr = 1e-4
+
+    if args.max_samples > 0 and args.max_samples < train_df.height:
+        train_df = train_df.head(args.max_samples)
+        print(f"  Limited to {args.max_samples} samples")
 
     texts = train_df["task_text"].to_list()
     targets = train_df["ground_truth"].to_list()
