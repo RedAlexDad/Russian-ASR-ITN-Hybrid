@@ -13,12 +13,12 @@ Fine-tuning ruT5-small (65M параметров) с LoRA для задачи IT
 
 Обучение на `data/synthetic.f` (16 500 строк, из них 7 392 clean).
 
-| Параметр | Значение |
-|----------|----------|
-| Clean строк | 7 392 |
-| Train (90%) | ~6 653 |
-| Test (10%) | ~739 |
-| Шум | 9 108 строк (55%) — исключены |
+| Параметр    | Значение                      |
+| ----------- | ----------------------------- |
+| Clean строк | 7 392                         |
+| Train (90%) | ~6 653                        |
+| Test (10%)  | ~739                          |
+| Шум         | 9 108 строк (55%) — исключены |
 
 Подробнее: [docs/data.md](data.md)
 
@@ -26,14 +26,14 @@ Fine-tuning ruT5-small (65M параметров) с LoRA для задачи IT
 
 Вместо полного fine-tuning (65M параметров) обучаются только LoRA-адаптеры.
 
-| Параметр | Значение |
-|----------|----------|
-| Ранг (r) | 8 |
-| Alpha | 16 |
-| Target modules | q, v, k, o, wi, wo |
-| Trainable params | 0.9M (1.4%) |
-| Dropout | 0.1 |
-| Базовая модель | frozen |
+| Параметр         | Значение           |
+| ---------------- | ------------------ |
+| Ранг (r)         | 8                  |
+| Alpha            | 16                 |
+| Target modules   | q, v, k, o, wi, wo |
+| Trainable params | 0.9M (1.4%)        |
+| Dropout          | 0.1                |
+| Базовая модель   | frozen             |
 
 ## Команды
 
@@ -60,6 +60,7 @@ make mlflow-down      # Остановка
 ```
 
 MLflow логирует:
+
 - Parameters: epochs, batch_size, lr, model_name
 - Metrics: train_loss, eval_loss, test_accuracy по эпохам
 - Artifacts: confusion matrix, classification report, prediction samples
@@ -67,14 +68,14 @@ MLflow логирует:
 
 ## Гиперпараметры
 
-| Параметр | Значение | Описание |
-|----------|----------|----------|
-| learning_rate | 5e-5 | Скорость обучения |
-| batch_size | 8 | Размер батча |
-| max_length | 128 | Макс. длина последовательности |
-| warmup_steps | 100 | Разогрев LR scheduler |
-| weight_decay | 0.01 | L2 регуляризация |
-| LoRA r | 8 | Ранг адаптера |
+| Параметр      | Значение | Описание                       |
+| ------------- | -------- | ------------------------------ |
+| learning_rate | 5e-5     | Скорость обучения              |
+| batch_size    | 8        | Размер батча                   |
+| max_length    | 128      | Макс. длина последовательности |
+| warmup_steps  | 100      | Разогрев LR scheduler          |
+| weight_decay  | 0.01     | L2 регуляризация               |
+| LoRA r        | 8        | Ранг адаптера                  |
 
 ## Метрики
 

@@ -7,16 +7,16 @@ Accuracy на calibration.f: **97.6%**.
 
 ## Документация
 
-| Раздел | Описание |
-|--------|----------|
-| [Архитектура](docs/architecture.md) | Общая схема и модули |
-| [Словари и ASR-ошибки](docs/lexicon.md) | Словарные данные |
-| [Парсер](docs/parser.md) | Логика сумма/перечисление |
-| [Нормализатор](docs/normalizer.md) | Обход текста и замена |
-| [Гибрид](docs/hybrid.md) | Парсер + ruT5 fallback |
-| [Обучение](docs/training.md) | Fine-tuning ruT5-small |
-| [Датасеты](docs/data.md) | calibration, synthetic, real |
-| [CLI и Makefile](docs/cli.md) | Команды и переменные |
+| Раздел                                  | Описание                     |
+| --------------------------------------- | ---------------------------- |
+| [Архитектура](docs/architecture.md)     | Общая схема и модули         |
+| [Словари и ASR-ошибки](docs/lexicon.md) | Словарные данные             |
+| [Парсер](docs/parser.md)                | Логика сумма/перечисление    |
+| [Нормализатор](docs/normalizer.md)      | Обход текста и замена        |
+| [Гибрид](docs/hybrid.md)                | Парсер + ruT5 fallback       |
+| [Обучение](docs/training.md)            | Fine-tuning ruT5-small       |
+| [Датасеты](docs/data.md)                | calibration, synthetic, real |
+| [CLI и Makefile](docs/cli.md)           | Команды и переменные         |
 
 ## Быстрый старт
 
@@ -42,11 +42,11 @@ make down                 # остановить
 
 ## Результаты
 
-| Датасет | Accuracy | Ошибок |
-|---------|----------|--------|
-| calibration.f | 97.6% | 12/500 |
-| synthetic.f (clean) | 96.32% | 5% |
-| real.f | 83.0% | 17% |
+| Датасет             | Accuracy | Ошибок |
+| ------------------- | -------- | ------ |
+| calibration.f       | 97.6%    | 12/500 |
+| synthetic.f (clean) | 96.32%   | 5%     |
+| real.f              | 83.0%    | 17%    |
 
 ## Структура проекта
 

@@ -26,26 +26,26 @@ make down                    # остановить
 
 ### Docker lifecycle
 
-| Цель | Описание |
-|------|----------|
-| `make` / `make help` | Справка |
-| `make build` | Сборка образа (с кэшем) |
-| `make up` | Запуск контейнера (фон) |
-| `make down` | Остановка контейнера |
-| `make deploy` | down + build + up (рекомендуемый старт) |
-| `make clean` | Очистить Docker-ресурсы |
+| Цель                 | Описание                                |
+| -------------------- | --------------------------------------- |
+| `make` / `make help` | Справка                                 |
+| `make build`         | Сборка образа (с кэшем)                 |
+| `make up`            | Запуск контейнера (фон)                 |
+| `make down`          | Остановка контейнера                    |
+| `make deploy`        | down + build + up (рекомендуемый старт) |
+| `make clean`         | Очистить Docker-ресурсы                 |
 
 ### Команды в контейнере
 
-| Цель | Описание |
-|------|----------|
-| `make run` | Нормализация test.f → answer.f |
-| `make evaluate` | Оценка accuracy на calibration.f |
-| `make errors` | Показать ошибки (N=15) |
-| `make test` | Запустить pytest |
-| `make synthetic` | Генерация синтетики |
-| `make train` | Обучение ruT5 |
-| `make eda` | EDA с графиками |
+| Цель             | Описание                         |
+| ---------------- | -------------------------------- |
+| `make run`       | Нормализация test.f → answer.f   |
+| `make evaluate`  | Оценка accuracy на calibration.f |
+| `make errors`    | Показать ошибки (N=15)           |
+| `make test`      | Запустить pytest                 |
+| `make synthetic` | Генерация синтетики              |
+| `make train`     | Обучение ruT5                    |
+| `make eda`       | EDA с графиками                  |
 
 ### Локальный запуск (без Docker)
 
@@ -68,15 +68,15 @@ make mlflow-clean       # Очистить БД и артефакты
 
 ## Переменные
 
-| Переменная | Умолчание | Описание |
-|------------|-----------|----------|
-| `INPUT` | `data/test.f` | Входной .feather |
-| `CALIB` | `data/calibration.f` | calibration.f |
-| `OUTPUT` | `answer.f` | Выходной .feather |
-| `EPOCHS` | `3` | Эпох обучения |
-| `BATCH_SIZE` | `8` | Размер батча |
-| `MAX_SAMPLES` | все | Лимит сэмплов для train |
-| `N` | `15` | Количество ошибок для show |
+| Переменная    | Умолчание            | Описание                   |
+| ------------- | -------------------- | -------------------------- |
+| `INPUT`       | `data/test.f`        | Входной .feather           |
+| `CALIB`       | `data/calibration.f` | calibration.f              |
+| `OUTPUT`      | `answer.f`           | Выходной .feather          |
+| `EPOCHS`      | `3`                  | Эпох обучения              |
+| `BATCH_SIZE`  | `8`                  | Размер батча               |
+| `MAX_SAMPLES` | все                  | Лимит сэмплов для train    |
+| `N`           | `15`                 | Количество ошибок для show |
 
 ## Python CLI
 
