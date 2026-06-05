@@ -1,10 +1,10 @@
 """Сборка общего словаря числительных и функции поиска."""
 
-from src.dicts.units import UNITS, TEENS, TENS
-from src.dicts.hundreds import HUNDREDS
-from src.dicts.thousands import THOUSANDS, MILLIONS, BILLIONS, MULTIPLIERS
-from src.dicts.ordinals import ORDINALS, ORDINAL_SET
 from src.dicts.asr_errors import ASR_ERRORS
+from src.dicts.hundreds import HUNDREDS
+from src.dicts.ordinals import ORDINAL_SET, ORDINALS
+from src.dicts.thousands import BILLIONS, MILLIONS, MULTIPLIERS, THOUSANDS
+from src.dicts.units import TEENS, TENS, UNITS
 
 # ──────────────────────────────────────────────
 # Полный словарь числительных
@@ -15,11 +15,13 @@ for d in (UNITS, TEENS, TENS, HUNDREDS, THOUSANDS, MILLIONS, BILLIONS):
     NUMERAL_DICT.update(d)
 
 # Дополнительные слитные формы (ASR-склейки)
-NUMERAL_DICT.update({
-    'дветысячи': (2000, 0),
-    'двесте': (200, 3),
-    'двестипятьсот': (2500, 0),
-})
+NUMERAL_DICT.update(
+    {
+        "дветысячи": (2000, 0),
+        "двесте": (200, 3),
+        "двестипятьсот": (2500, 0),
+    }
+)
 
 
 def lookup_word(word):

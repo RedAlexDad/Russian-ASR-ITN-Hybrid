@@ -1,6 +1,6 @@
 """Нормализатор текста: обход токенов, выделение числовых групп, замена."""
 
-from src.lexicon import lookup_word, is_ordinal_word, ordinal_value
+from src.lexicon import is_ordinal_word, lookup_word, ordinal_value
 from src.parser import parse_number_group
 
 
@@ -52,4 +52,4 @@ def normalize_text(text):
             result_tokens.append(token)
             i += 1
 
-    return ' '.join(result_tokens)
+    return " ".join(result_tokens)

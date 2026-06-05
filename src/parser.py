@@ -25,7 +25,7 @@ def parse_number_group(tokens_data):
     if not tokens_data:
         return []
 
-    is_standalone_mult = (len(tokens_data) == 1 and tokens_data[0][2])
+    is_standalone_mult = len(tokens_data) == 1 and tokens_data[0][2]
 
     compound = 0
     current = 0
