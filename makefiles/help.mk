@@ -35,7 +35,9 @@ help:
 	@printf "    CALIB=path   — calibration.f            (умолч: data/calibration.f)\n"
 	@printf "    OUTPUT=path  — выходной .feather        (умолч: answer.f)\n"
 	@printf "    NOTEBOOK=path — путь до ноутбука         (умолч: notebooks/eda.ipynb)\n"
-	@printf "    N=число      — количество ошибок        (умолч: 15)\n"
+	@printf "    N=число      — количество ошибок        (умолч: 15)
+    EPOCHS=число — эпох обучения            (умолч: 3)
+    BATCH_SIZE=число — размер батча         (умолч: 8)\n"
 	@echo ""
 	@printf "  $(YELLOW)пример:$(NC)\n"
 	@printf "    make deploy && make synthetic && make evaluate && make down\n"

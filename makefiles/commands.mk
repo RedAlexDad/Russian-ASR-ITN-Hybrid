@@ -62,3 +62,7 @@ evaluate-real:
 	  df = pl.read_ipc('data/real.f'); \
 	  c = sum(1 for r in df.iter_rows(named=True) if normalize_text(r['task_text']) == r['ground_truth']); \
 	  print(f'  Accuracy: {c}/{len(df)} = {c/len(df)*100:.2f}%')"
+
+train:
+	@printf "$(BLUE)${BOLD}[TRAIN]$(NC)    Обучение ruT5-small на синтетике...\n"
+	$(COMPOSE) exec app $(PY) scripts/train.py --data data/synthetic.f --epochs $(or $(EPOCHS),3) --batch-size $(or $(BATCH_SIZE),8)
