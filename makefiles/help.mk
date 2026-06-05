@@ -47,6 +47,7 @@ help:
 	@printf "    N=число      — количество ошибок        (умолч: 15)\n"
 	@printf "    EPOCHS=число — эпох обучения            (умолч: 3)\n"
 	@printf "    BATCH_SIZE=число — размер батча         (умолч: 8)\n"
+	@printf "    MAX_SAMPLES=число — лимит сэмплов        (умолч: все)\n"
 	@echo ""
 	@printf "  $(YELLOW)пример:$(NC)\n"
 	@printf "    make deploy && make synthetic && make evaluate && make down\n"

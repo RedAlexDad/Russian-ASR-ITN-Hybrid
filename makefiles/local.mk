@@ -37,7 +37,7 @@ synthetic-local:
 
 train-local:
 	@printf "$(BLUE)${BOLD}[TRAIN]$(NC)    Обучение ruT5-small на синтетике...\n"
-	$(VENV_PY) scripts/train.py --data data/synthetic.f --epochs $(or $(EPOCHS),3) --batch-size $(or $(BATCH_SIZE),8) $(if $(findstring quick,$(MAKECMDGOALS)),--quick,)
+	$(VENV_PY) scripts/train.py --data data/synthetic.f --epochs $(or $(EPOCHS),3) --batch-size $(or $(BATCH_SIZE),8) $(if $(MAX_SAMPLES),--max-samples $(MAX_SAMPLES),)
 
 train-quick:
 	@printf "$(BLUE)${BOLD}[TRAIN-QUICK]$(NC) Быстрое обучение (200 samples, 1 epoch)...\n"
