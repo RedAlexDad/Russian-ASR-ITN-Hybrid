@@ -296,6 +296,29 @@ def apply_asr_noise(text, noise_level=0.6):
             pos = random.randint(1, len(w) - 2)
             w = w[:pos] + w[pos + 1 :]
 
+        # Levenshtein-вариация для неизвестных слов
+        # Для слов, которые не числительные и не в ASR_ERRORS,
+        # применяем случайную редакционную операцию (вставка, удаление, замена, перестановка)
+        if random.random() < 0.12 and len(w) > 3 and not any(c.isdigit() for c in w):
+            op = random.choice(['sub', 'del', 'ins', 'trans'])
+            pos = random.randint(1, len(w) - 2)
+            if op == 'sub' and len(w) > 3:
+                # Замена буквы на похожую
+                nearby = {'а': 'оя', 'о': 'ае', 'е': 'иё', 'и': 'еы',
+                          'у': 'ю', 'ю': 'у', 'я': 'а', 'ы': 'и',
+                          'т': 'дс', 'д': 'т', 'п': 'б', 'б': 'п',
+                          'с': 'зт', 'з': 'с', 'к': 'г', 'г': 'к',
+                          'в': 'ф', 'ф': 'в', 'р': 'л', 'л': 'р'}
+                if w[pos] in nearby:
+                    w = w[:pos] + random.choice(nearby[w[pos]]) + w[pos+1:]
+            elif op == 'del' and len(w) > 5:
+                w = w[:pos] + w[pos+1:]
+            elif op == 'ins' and len(w) < 12:
+                extra = random.choice('аеиоуыя')
+                w = w[:pos] + extra + w[pos:]
+            elif op == 'trans' and pos + 1 < len(w):
+                w = w[:pos] + w[pos+1] + w[pos] + w[pos+2:]
+
         result.append(w)
         i += 1
     return " ".join(result)
