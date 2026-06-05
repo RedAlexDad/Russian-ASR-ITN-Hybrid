@@ -1,0 +1,8 @@
+services:
+  app:
+    build: .
+    entrypoint: ["make"]
+    volumes:
+      - ./data:/app/data
+      - ./answer.f:/app/answer.f
+      - ./reports:/app/reports

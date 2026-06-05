@@ -1,4 +1,4 @@
-.PHONY: help run evaluate errors test clean
+.PHONY: help run evaluate errors test clean docker-build docker-run
 .DEFAULT_GOAL := help
 
 DATA_DIR  := data
@@ -26,6 +26,7 @@ help:
 	@printf "$(RED)%-10s$(RESET) %s\n"   "errors"     "Показать ошибки:         make errors CALIB=data/calibration.f N=15"
 	@printf "$(BLUE)%-10s$(RESET) %s\n"  "test"       "Запустить тесты (pytest)"
 	@printf "$(MAGENTA)%-10s$(RESET) %s\n" "clean"    "Очистить временные файлы"
+	@printf "$(GREEN)%-10s$(RESET) %s\n"  "docker"   "Собрать и запустить через Docker:  make docker CMD=evaluate"
 	@echo ""
 	@printf "$(BOLD)Переменные:$(RESET)\n"
 	@printf "  INPUT=path   — входной .feather (умолч: data/test.f)\n"
@@ -55,3 +56,8 @@ clean:
 	rm -rf __pycache__ src/__pycache__ src/dicts/__pycache__ .pytest_cache
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	@printf "$(GREEN)[OK]$(RESET) Готово\n"
+
+docker:
+	@printf "$(GREEN)[DOCKER]$(RESET) Сборка и запуск: docker compose run --rm app $(CMD)\n"
+	docker compose build
+	docker compose run --rm app $(CMD)
