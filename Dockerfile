@@ -1,25 +1,33 @@
+# ====================================================================
+# Stage 1: builder — установка Python-зависимостей
+# ====================================================================
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
+
+# ====================================================================
+# Stage 2: runtime — минимальный образ
+# ====================================================================
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Layer 1: system dependencies (rarely changes)
+# system deps
 RUN apt-get update && apt-get install -y --no-install-recommends \
     make \
     && rm -rf /var/lib/apt/lists/*
 
-# Layer 2: Python dependencies (cached until requirements.txt changes)
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# site-packages из builder
+COPY --from=builder /root/.local /root/.local
+ENV PATH=/root/.local/bin:$PATH
 
-# Layer 3: source code (cached until src/ changes)
+# исходный код (слои по частоте изменений)
 COPY src/ src/
-
-# Layer 4: entry points and config (cached until these files change)
 COPY main.py Makefile ./
 COPY makefiles/ makefiles/
 COPY scripts/ scripts/
-
-# Layer 5: everything else (reports, docs — changes least often)
 COPY reports/ reports/
 
 CMD ["tail", "-f", "/dev/null"]
