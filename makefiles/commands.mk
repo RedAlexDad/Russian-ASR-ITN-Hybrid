@@ -19,3 +19,7 @@ errors:
 test:
 	@printf "$(BLUE)${BOLD}[TEST]$(NC)     Запуск тестов...\n"
 	$(COMPOSE) exec -T app $(PY) -m pytest -v
+
+validate:
+	@printf "$(BLUE)${BOLD}[VALIDATE]$(NC) Проверка ноутбука...\n"
+	$(PY) scripts/validate_notebook.py $(NOTEBOOK)
