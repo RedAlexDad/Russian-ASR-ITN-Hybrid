@@ -23,3 +23,12 @@ test:
 validate:
 	@printf "$(BLUE)${BOLD}[VALIDATE]$(NC) Проверка ноутбука...\n"
 	$(PY) scripts/validate_notebook.py $(NOTEBOOK)
+
+eda:
+	@printf "$(BLUE)${BOLD}[EDA]$(NC)      Генерация EDA из ноутбука...\n"
+	jupyter nbconvert --to html --execute --ExecutePreprocessor.timeout=120 notebooks/eda.ipynb --output-dir=reports 2>&1
+	@printf "$(GREEN)${BOLD}[OK]$(NC)       reports/eda.html\n"
+
+eda-view:
+	@printf "$(BLUE)${BOLD}[EDA-VIEW]$(NC) Открытие ноутбука...\n"
+	jupyter notebook notebooks/eda.ipynb
