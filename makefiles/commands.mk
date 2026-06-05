@@ -37,3 +37,15 @@ synthetic:
 	$(require-container)
 	@printf "$(BLUE)${BOLD}[SYNTHETIC]$(NC) Генерация синтетического датасета...\n"
 	$(COMPOSE) exec app $(PY) scripts/generate_synthetic.py
+
+evaluate-synthetic:
+
+evaluate-synthetic:
+	$(require-container)
+	@printf "$(YELLOW)${BOLD}[EVAL-SYNTH]$(NC) Оценка accuracy на синтетике...\n"
+	$(COMPOSE) exec app $(PY) -c "import polars as pl; from src.normalizer import normalize_text; df = pl.read_ipc('data/synthetic.f'); \
+	  [print(f'  {l}: {c}/{s.height} = {c/s.height*100:.2f}%') for l in ['clean','noisy'] \
+	  if (s:=df.filter(pl.col('noise_level')==l)).height>0 and (c:=sum(1 for r in s.iter_rows(named=True) \
+	  if normalize_text(r['task_text'])==r['ground_truth']))]; \
+	  c=sum(1 for r in df.iter_rows(named=True) if normalize_text(r['task_text'])==r['ground_truth']); \
+	  print(f'  overall: {c}/{len(df)} = {c/len(df)*100:.2f}%')"
