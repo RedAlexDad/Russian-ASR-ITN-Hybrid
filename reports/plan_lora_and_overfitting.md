@@ -248,12 +248,12 @@ def hybrid_normalize(text):
 
 ### Чек-лист гибрида
 
-- [ ] Создать `src/hybrid.py` (normalize + t5_fallback)
-- [ ] Функция parser_confidence() — оценка уверенности
-- [ ] fallback на ruT5 при низкой уверенности
-- [ ] graceful fallback: если модели нет → только парсер
-- [ ] Интеграция в main.py (run, evaluate)
-- [ ] Тест на calibration.f
+- [x] Создать `src/hybrid.py` (normalize + t5_fallback)
+- [x] Функция parser_confidence() — оценка уверенности
+- [x] fallback на ruT5 при низкой уверенности
+- [x] graceful fallback: если модели нет → только парсер
+- [ ] Интеграция в main.py (run, evaluate) — после обучения модели
+- [ ] Тест на calibration.f — после обучения модели
 
 ## Следующие шаги
 
@@ -261,5 +261,7 @@ def hybrid_normalize(text):
 2. ⏳ Добавить early stopping
 3. ⏳ Добавить save best model
 4. ⏳ Протестировать на 500 samples
-5. ⏳ Запустить полное обучение на 7392 строках
-6. ⏳ Реализовать гибрид: парсер + ruT5 fallback
+5. ⏳ **Запустить полное обучение на 7392 строках** ← сейчас
+6. ✅ Реализовать гибрид: парсер + ruT5 fallback
+7. ⏳ Переключить main.py на hybrid_normalize — после обучения
+8. ⏳ `make evaluate` — проверка accuracy гибрида
