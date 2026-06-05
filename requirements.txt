@@ -4,8 +4,11 @@ pytest>=7.0
 polars>=1.0
 matplotlib>=3.7
 seaborn>=0.12
+
 torch>=2.0
 transformers>=4.30
 sentencepiece>=0.1
+protobuf>=3.20
+tiktoken>=0.5
 datasets>=2.0
 accelerate>=0.20
