@@ -32,3 +32,8 @@ eda:
 	$(require-container)
 	@printf "$(BLUE)${BOLD}[EDA]$(NC)      Запуск EDA...\n"
 	$(COMPOSE) exec app $(PY) scripts/eda.py
+
+synthetic:
+	$(require-container)
+	@printf "$(BLUE)${BOLD}[SYNTHETIC]$(NC) Генерация синтетического датасета...\n"
+	$(COMPOSE) exec app $(PY) scripts/generate_synthetic.py
