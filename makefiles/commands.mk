@@ -49,3 +49,16 @@ evaluate-synthetic:
 	  if normalize_text(r['task_text'])==r['ground_truth']))]; \
 	  c=sum(1 for r in df.iter_rows(named=True) if normalize_text(r['task_text'])==r['ground_truth']); \
 	  print(f'  overall: {c}/{len(df)} = {c/len(df)*100:.2f}%')"
+
+fetch-real:
+	$(require-container)
+	@printf "$(BLUE)${BOLD}[FETCH]$(NC)     Сбор реальных данных из интернета...\n"
+	$(COMPOSE) exec app $(PY) scripts/fetch_real_data.py
+
+evaluate-real:
+	$(require-container)
+	@printf "$(YELLOW)${BOLD}[EVAL-REAL]$(NC) Оценка accuracy на реальных данных...\n"
+	$(COMPOSE) exec app $(PY) -c "import polars as pl; from src.normalizer import normalize_text; \
+	  df = pl.read_ipc('data/real.f'); \
+	  c = sum(1 for r in df.iter_rows(named=True) if normalize_text(r['task_text']) == r['ground_truth']); \
+	  print(f'  Accuracy: {c}/{len(df)} = {c/len(df)*100:.2f}%')"
