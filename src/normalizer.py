@@ -60,6 +60,7 @@ def normalize_text(text):
                 io = is_ordinal_word(t)
                 if io:
                     val_str = ordinal_value(t)
+                    assert val_str is not None
                     group_data.append((int(val_str), 0, False, True))
                 elif lk is not None:
                     val, mag, is_mult = lk
