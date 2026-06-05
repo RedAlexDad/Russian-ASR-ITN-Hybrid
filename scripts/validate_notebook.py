@@ -217,14 +217,13 @@ def validate(path):
 
     # Итог
     print()
-    total_checks = 8
     if errors == 0:
-        print(f"  \033[92m\033[1m✓ Все проверки пройдены\033[0m")
-        print(f"    Предупреждений: {warnings}")
+        print("  \033[92m\033[1m✓ Все проверки пройдены\033[0m")
+        print(f"    \033[93mПредупреждений: {warnings}\033[0m")
         return True
     else:
         print(f"  \033[91m\033[1m✗ Найдено ошибок: {errors}\033[0m")
-        print(f"    Предупреждений: {warnings}")
+        print(f"    \033[93mПредупреждений: {warnings}\033[0m")
         return False
 
 
