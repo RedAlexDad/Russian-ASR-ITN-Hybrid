@@ -2,33 +2,28 @@
 # КОМАНДЫ В КОНТЕЙНЕРЕ
 # ════════════════════════════════════════════════════════════
 
-.PHONY: run evaluate errors test
+.PHONY: run evaluate errors test validate eda
 
 run:
 	@printf "$(GREEN)${BOLD}[RUN]$(NC)      Нормализация: $(INPUT) → $(OUTPUT)\n"
-	$(COMPOSE) exec -T app $(PY) main.py run "$(INPUT)" -o "$(OUTPUT)"
+	$(COMPOSE) exec app $(PY) main.py run "$(INPUT)" -o "$(OUTPUT)"
 
 evaluate:
 	@printf "$(YELLOW)${BOLD}[EVAL]$(NC)     Оценка accuracy на: $(CALIB)\n"
-	$(COMPOSE) exec -T app $(PY) main.py evaluate "$(CALIB)"
+	$(COMPOSE) exec app $(PY) main.py evaluate "$(CALIB)"
 
 errors:
 	@printf "$(RED)${BOLD}[ERRORS]$(NC)    Первые $(or $(N),15) ошибок на: $(CALIB)\n"
-	$(COMPOSE) exec -T app $(PY) main.py errors "$(CALIB)" -n $(or $(N),15)
+	$(COMPOSE) exec app $(PY) main.py errors "$(CALIB)" -n $(or $(N),15)
 
 test:
 	@printf "$(BLUE)${BOLD}[TEST]$(NC)     Запуск тестов...\n"
-	$(COMPOSE) exec -T app $(PY) -m pytest -v
+	$(COMPOSE) exec app $(PY) -m pytest -v
 
 validate:
 	@printf "$(BLUE)${BOLD}[VALIDATE]$(NC) Проверка ноутбука...\n"
 	$(PY) scripts/validate_notebook.py $(NOTEBOOK)
 
 eda:
-	@printf "$(BLUE)${BOLD}[EDA]$(NC)      Генерация EDA из ноутбука...\n"
-	jupyter nbconvert --to html --execute --ExecutePreprocessor.timeout=120 notebooks/eda.ipynb --output-dir=reports 2>&1
-	@printf "$(GREEN)${BOLD}[OK]$(NC)       reports/eda.html\n"
-
-eda-view:
-	@printf "$(BLUE)${BOLD}[EDA-VIEW]$(NC) Открытие ноутбука...\n"
-	jupyter notebook notebooks/eda.ipynb
+	@printf "$(BLUE)${BOLD}[EDA]$(NC)      Запуск EDA...\n"
+	$(COMPOSE) exec app $(PY) scripts/eda.py
