@@ -19,14 +19,12 @@
 import hashlib
 import json
 import os
-import random
 import re
 import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import xml.etree.ElementTree as ET
-from pathlib import Path
 
 import requests
 from bs4 import BeautifulSoup
@@ -363,7 +361,7 @@ def main():
             seen.add(key)
             unique.append(s)
 
-    print(f"\n[3/3] Конвертация в ITN-формат...")
+    print("\n[3/3] Конвертация в ITN-формат...")
     print(f"      Уникальных предложений: {len(unique)}")
 
     pairs = sentences_to_itn_pairs(unique)
@@ -382,7 +380,7 @@ def main():
         print(f"      ITN-датасет: data/real.f ({len(df)} rows)")
 
         # Базовая статистика
-        print(f"\nСтатистика:")
+        print("\nСтатистика:")
         nums = []
         for gt in df["ground_truth"].to_list():
             nums.extend(re.findall(r"\d+", str(gt)))
