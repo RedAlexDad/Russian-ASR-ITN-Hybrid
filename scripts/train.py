@@ -53,10 +53,12 @@ class ITNDataset(Dataset):
                              truncation=True, padding='max_length', return_tensors='pt')
         tgt = self.tokenizer(self.targets[idx], max_length=self.max_len,
                              truncation=True, padding='max_length', return_tensors='pt')
+        labels = tgt['input_ids'][0].clone()
+        labels[labels == 0] = -100  # mask padding tokens in loss
         return {
             'input_ids': src['input_ids'][0],
             'attention_mask': src['attention_mask'][0],
-            'labels': tgt['input_ids'][0],
+            'labels': labels,
         }
 
 
@@ -150,6 +152,11 @@ def main():
     parser.add_argument('--output', default='models/ruT5-itn')
     parser.add_argument('--quick', action='store_true')
     parser.add_argument('--mlflow', action='store_true')
+    parser.add_argument('--lora', action='store_true', default=True,
+                        help='Use LoRA (default). Pass --no-lora to disable')
+    parser.add_argument('--no-lora', dest='lora', action='store_false')
+    parser.add_argument('--lora-r', type=int, default=8, help='LoRA rank')
+    parser.add_argument('--lora-alpha', type=int, default=16, help='LoRA alpha')
     args = parser.parse_args()
 
     # ── MLflow ──
@@ -175,9 +182,25 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained('cointegrated/ruT5-small')
     model = AutoModelForSeq2SeqLM.from_pretrained('cointegrated/ruT5-small')
     model.config.tie_word_embeddings = False
+    print(f'  Params: {sum(p.numel() for p in model.parameters())/1e6:.0f}M')
+
+    # LoRA — обучаем только адаптеры (2-4M параметров вместо 65M)
+    if args.lora:
+        from peft import LoraConfig, get_peft_model, TaskType
+        lora_config = LoraConfig(
+            task_type=TaskType.SEQ_2_SEQ_LM,
+            r=args.lora_r,
+            lora_alpha=args.lora_alpha,
+            target_modules=['q', 'v', 'k', 'o', 'wi', 'wo'],
+            lora_dropout=0.1,
+        )
+        model = get_peft_model(model, lora_config)
+        trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        total = sum(p.numel() for p in model.parameters())
+        print(f'  LoRA: r={args.lora_r}, trainable={trainable/1e6:.1f}M/{total/1e6:.0f}M')
+
     dev = 'GPU' if torch.cuda.is_available() else 'CPU'
     dev_name = torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU'
-    print(f'  Params: {sum(p.numel() for p in model.parameters())/1e6:.0f}M')
     print(f'  Device: {dev} ({dev_name})')
 
     print(f'\nLoading data: {args.data}')
