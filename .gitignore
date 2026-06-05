@@ -22,3 +22,5 @@ Thumbs.db
 *.swo
 *~
 models/
+mlflow.db
+mlflow-artifacts/

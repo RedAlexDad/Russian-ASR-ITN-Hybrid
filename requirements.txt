@@ -12,3 +12,4 @@ protobuf>=3.20
 tiktoken>=0.5
 datasets>=2.0
 accelerate>=0.20
+mlflow>=2.0

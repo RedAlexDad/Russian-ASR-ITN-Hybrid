@@ -65,5 +65,5 @@ evaluate-real:
 
 train:
 	@printf "$(BLUE)${BOLD}[TRAIN]$(NC)    Обучение ruT5-small на синтетике...\n"
-	$(COMPOSE) exec app $(PY) scripts/train.py --data data/synthetic.f --epochs $(or $(EPOCHS),3) --batch-size $(or $(BATCH_SIZE),8) $(if $(MAX_SAMPLES),--max-samples $(MAX_SAMPLES),)
+	$(COMPOSE) exec app $(PY) scripts/train.py --data data/synthetic.f --epochs $(or $(EPOCHS),3) --batch-size $(or $(BATCH_SIZE),8) $(if $(MAX_SAMPLES),--max-samples $(MAX_SAMPLES),) --mlflow
 
