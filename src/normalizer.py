@@ -23,6 +23,12 @@ import re
 from src.lexicon import is_ordinal_word, lookup_word, ordinal_value
 from src.parser import parse_number_group
 
+try:
+    from src.disambiguate import is_likely_numeric
+except ImportError:
+    def is_likely_numeric(*_):
+        return True
+
 
 # ── ASR regex-препроцессинг ──
 
@@ -123,6 +129,13 @@ def normalize_text(text):
 
         lookup = lookup_word(token)
         is_ord = is_ordinal_word(token)
+
+        # Дисамбигуация: слова вроде "сто" могут быть не числительными
+        if lookup is not None and not is_ord:
+            if not is_likely_numeric(text, token, i):
+                result_tokens.append(token)
+                i += 1
+                continue
 
         if lookup is not None or is_ord:
             # Нашли числовой токен — собираем группу
