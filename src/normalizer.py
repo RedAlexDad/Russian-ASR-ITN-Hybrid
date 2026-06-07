@@ -18,8 +18,60 @@
 Это требование метрики Accuracy — любое изменение не-числа считается ошибкой.
 """
 
+import re
+
 from src.lexicon import is_ordinal_word, lookup_word, ordinal_value
 from src.parser import parse_number_group
+
+
+# ── ASR regex-препроцессинг ──
+
+_HUNDRED_TO_TEN = {
+    "триста": "тридцать",
+    "четыреста": "сорок",
+    "пятьсот": "пятьдесят",
+    "шестьсот": "шестьдесят",
+    "семьсот": "семьдесят",
+    "восемьсот": "восемьдесят",
+    "девятьсот": "девяносто",
+}
+
+_TEN_TO_UNIT = {
+    "пятьдесят": "пять",
+    "шестьдесят": "шесть",
+    "семьдесят": "семь",
+    "восемьдесят": "восемь",
+    "девяносто": "девять",
+}
+
+_ASR_SUBSTITUTIONS = [
+    # "двеси" + hundred + (ten) + тысяч: сдвиг разрядов
+    # "двеси триста пятьдесят тысяч" → "двести тридцать пять тысяч"
+    (re.compile(r'\bдвеси\s+(триста|четыреста|пятьсот|шестьсот|семьсот|восемьсот|девятьсот)(?:\s+(пятьдесят|шестьдесят|семьдесят|восемьдесят))?\s+тысяч[аи]?\b'),
+     lambda m: " ".join(
+         ["двести", _HUNDRED_TO_TEN.get(m.group(1), m.group(1))]
+         + ([_TEN_TO_UNIT.get(m.group(2))] if m.group(2) in _TEN_TO_UNIT else [])
+         + ["тысяч"]
+     )),
+    # Пропущенный мягкий знак в десятках
+    (re.compile(r'\bпятдесят\b'), 'пятьдесят'),
+    (re.compile(r'\bшестдесят\b'), 'шестьдесят'),
+    (re.compile(r'\bсемдесят\b'), 'семьдесят'),
+    (re.compile(r'\bвосемдесят\b'), 'восемьдесят'),
+    # Падежные ошибки в сотнях
+    (re.compile(r'\bтристо\b'), 'триста'),
+    (re.compile(r'\bчетыриста\b'), 'четыреста'),
+]
+
+
+def _asr_preprocess(text):
+    """Корректирует известные ASR-ошибки в числовых последовательностях до парсинга."""
+    for pattern, replacement in _ASR_SUBSTITUTIONS:
+        if callable(replacement):
+            text = pattern.sub(replacement, text)
+        else:
+            text = pattern.sub(replacement, text)
+    return text
 
 
 def _is_vague_tyt_context(tokens, i):
@@ -55,6 +107,7 @@ def normalize_text(text):
     if not isinstance(text, str) or not text.strip():
         return text
 
+    text = _asr_preprocess(text)
     tokens = text.split()
     result_tokens = []
     i = 0
