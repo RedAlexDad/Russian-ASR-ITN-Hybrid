@@ -6,7 +6,7 @@
 
 help:
 	@printf "$(BOLD)╔══════════════════════════════════════════════════════════════╗$(NC)\n"
-	@printf "$(BOLD)║$(NC)  $(CYAN)russian-asr-itn-hybrid$(NC) — обратная текстовая нормализация  $(BOLD)║$(NC)\n"
+	@printf "$(BOLD)║$(NC)  $(CYAN)russian-asr-itn-hybrid$(NC) — обратная текстовая нормализация    $(BOLD)║$(NC)\n"
 	@printf "$(BOLD)╚══════════════════════════════════════════════════════════════╝$(NC)\n"
 	@echo ""
 	@printf "  $(CYAN)использование:$(NC)  make $(GREEN)<цель>$(NC)\n"
@@ -25,6 +25,8 @@ help:
 	@printf "$(BLUE)  test$(NC)               Запустить тесты (pytest)\n"
 	@printf "$(BLUE)  validate$(NC)           Проверить ноутбук:      $(YELLOW)make validate NOTEBOOK=notebooks/eda.ipynb$(NC)\n"
 	@printf "$(BLUE)  synthetic$(NC)         Сгенерировать синтетический датасет\n"
+	@printf "$(BLUE)  fetch-data$(NC)       Скачать test.f и calibration.f с Google Drive\n"
+	@printf "$(BLUE)  fetch-real$(NC)       Собрать реальные данные из интернета\n"
 	@printf "$(CYAN)╰──────────────────────────────────────────────────────────────$(NC)\n"
 	@printf "$(CYAN)╭─ EDA ────────────────────────────────────────────────────────$(NC)\n"
 	@printf "$(BLUE)  eda$(NC)                Запустить EDA (8 графиков в reports/plots/)\n"
@@ -44,6 +46,9 @@ help:
 	@printf "$(BLUE)  eda-local$(NC)          EDA через .venv\n"
 	@printf "$(BLUE)  train-local$(NC)        Обучение ruT5:          $(YELLOW)make train-local EPOCHS=1$(NC)\n"
 	@printf "$(BLUE)  train-quick$(NC)       Быстрый тест за 2-3 мин: $(YELLOW)make train-quick$(NC)\n"
+	@printf "$(BLUE)  synthetic-local$(NC)  Сгенерировать синтетический датасет\n"
+	@printf "$(BLUE)  fetch-data-local$(NC) Скачать test.f и calibration.f с Google Drive\n"
+	@printf "$(BLUE)  fetch-real-local$(NC) Собрать реальные данные из интернета\n"
 	@printf "$(CYAN)╰──────────────────────────────────────────────────────────────$(NC)\n"
 	@echo ""
 	@printf "  $(YELLOW)переменные:$(NC)\n"

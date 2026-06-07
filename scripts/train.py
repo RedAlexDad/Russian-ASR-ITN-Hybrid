@@ -35,30 +35,35 @@ from transformers import (
 )
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+import warnings
+warnings.filterwarnings('ignore', message='Creating a tensor from a list of numpy.ndarrays')
 sns.set_theme(style='whitegrid')
 
 
 class ITNDataset(Dataset):
     def __init__(self, texts, targets, tokenizer, max_len=128):
-        self.texts = texts
-        self.targets = targets
         self.tokenizer = tokenizer
         self.max_len = max_len
+        self.input_ids = []
+        self.attention_masks = []
+        self.labels_list = []
+        for src, tgt in zip(texts, targets):
+            s = tokenizer(src, max_length=max_len, truncation=True, padding='max_length', return_tensors='pt')
+            t = tokenizer(tgt, max_length=max_len, truncation=True, padding='max_length', return_tensors='pt')
+            lbl = t['input_ids'][0].clone()
+            lbl[lbl == 0] = -100
+            self.input_ids.append(s['input_ids'][0])
+            self.attention_masks.append(s['attention_mask'][0])
+            self.labels_list.append(lbl)
 
     def __len__(self):
-        return len(self.texts)
+        return len(self.input_ids)
 
     def __getitem__(self, idx):
-        src = self.tokenizer(self.texts[idx], max_length=self.max_len,
-                             truncation=True, padding='max_length', return_tensors='pt')
-        tgt = self.tokenizer(self.targets[idx], max_length=self.max_len,
-                             truncation=True, padding='max_length', return_tensors='pt')
-        labels = tgt['input_ids'][0].clone()
-        labels[labels == 0] = -100  # mask padding tokens in loss
         return {
-            'input_ids': src['input_ids'][0],
-            'attention_mask': src['attention_mask'][0],
-            'labels': labels,
+            'input_ids': self.input_ids[idx],
+            'attention_mask': self.attention_masks[idx],
+            'labels': self.labels_list[idx],
         }
 
 
@@ -79,14 +84,28 @@ class MLflowCallback(TrainerCallback):
     def on_epoch_end(self, args, state, control, **kwargs):
         epoch = int(state.epoch) if state.epoch else 0
         self.mlflow.log_metric('epoch', epoch, step=epoch)
+        self.mlflow.log_metric('train_speed_it_per_sec', state.global_step / (time.time() - self._train_start), step=epoch)
+
+    def on_train_begin(self, args, state, control, **kwargs):
+        self._train_start = time.time()
+
+    def on_step_end(self, args, state, control, **kwargs):
+        if state.global_step % 500 == 1:
+            model = kwargs.get('model')
+            if model is not None:
+                for name, param in model.named_parameters():
+                    if param.requires_grad and param.grad is not None:
+                        self.mlflow.log_metric(f'grad_norm/{name}', param.grad.norm().item(), step=state.global_step)
 
 
 def generate_predictions(model, tokenizer, texts, max_len=128):
+    device = next(model.parameters()).device
     model.eval()
     preds = []
     with torch.no_grad():
         for text in texts:
             inputs = tokenizer(text, return_tensors='pt', truncation=True, max_length=max_len)
+            inputs = {k: v.to(device) for k, v in inputs.items()}
             outputs = model.generate(**inputs, max_length=max_len, num_beams=2)
             preds.append(tokenizer.decode(outputs[0], skip_special_tokens=True))
     return preds
@@ -99,44 +118,76 @@ def evaluate_and_report(model, tokenizer, test_texts, test_targets, epoch, mlflo
     correct = sum(1 for p, t in zip(preds, test_targets) if p == t)
     acc = correct / len(test_texts) * 100
 
+    # ── Character Error Rate (CER) ──
+    total_chars, total_errors = 0, 0
+    for p, t in zip(preds, test_targets):
+        maxlen = max(len(p), len(t))
+        if maxlen == 0: continue
+        total_chars += maxlen
+        total_errors += sum(1 for a, b in zip(p, t) if a != b) + abs(len(p) - len(t))
+    cer = total_errors / total_chars if total_chars > 0 else 0
+
+    # ── Number-level accuracy ──
+    num_correct, num_total = 0, 0
+    for p, t in zip(preds, test_targets):
+        pn = re.findall(r'\d+', p)
+        tn = re.findall(r'\d+', t)
+        num_total += len(tn)
+        for a, b in zip(pn, tn):
+            if a == b:
+                num_correct += 1
+    num_acc = num_correct / num_total if num_total > 0 else 0
+
+    # ── Accuracy by input length bucket ──
+    buckets = {'short (1-20)': [], 'medium (21-40)': [], 'long (41+)': []}
+    for t, p, g in zip(test_texts, preds, test_targets):
+        key = 'short (1-20)' if len(t) <= 20 else ('medium (21-40)' if len(t) <= 40 else 'long (41+)')
+        buckets[key].append(p == g)
+    bucket_repr = ', '.join(f'{k}: {sum(v)/len(v)*100:.0f}%({len(v)})' for k, v in buckets.items() if v)
+
     all_true, all_pred = [], []
     for p, t in zip(preds, test_targets):
         pn = re.findall(r'\d+', p); tn = re.findall(r'\d+', t)
         for a, b in zip(pn, tn):
             all_true.append(len(a)); all_pred.append(len(b))
 
-    if all_true and mlflow:
-        from sklearn.metrics import classification_report
-        classes = sorted(set(all_true + all_pred))
-        try:
-            report = classification_report(all_true, all_pred, labels=classes,
-                                           target_names=[f'{c}-d' for c in classes],
-                                           digits=3, zero_division=0)
-            mlflow.log_text(report, f'reports/epoch_{epoch}/classification_report.txt')
-        except Exception:
-            pass
-
-    if all_true and mlflow:
-        fig, ax = plt.subplots(figsize=(6, 5))
-        classes = sorted(set(all_true + all_pred))
-        cm = np.zeros((len(classes), len(classes)), dtype=int)
-        for t, p in zip(all_true, all_pred):
-            if t in classes and p in classes:
-                cm[classes.index(t)][classes.index(p)] += 1
-        sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-                    xticklabels=[f'{c}-d' for c in classes],
-                    yticklabels=[f'{c}-d' for c in classes], ax=ax)
-        ax.set_xlabel('Predicted'); ax.set_ylabel('True')
-        ax.set_title(f'Confusion Matrix (epoch {epoch})')
-        plt.tight_layout()
-        mlflow.log_figure(fig, f'plots/epoch_{epoch}/confusion_matrix.png')
-        plt.close()
-
     if mlflow:
+        mlflow.log_metrics({
+            'exact_accuracy': acc / 100,
+            'char_error_rate': cer,
+            'number_accuracy': num_acc,
+        }, step=epoch)
+
+        if all_true:
+            from sklearn.metrics import classification_report
+            classes = sorted(set(all_true + all_pred))
+            try:
+                report = classification_report(all_true, all_pred, labels=classes,
+                                               target_names=[f'{c}-d' for c in classes],
+                                               digits=3, zero_division=0)
+                mlflow.log_text(report, f'reports/epoch_{epoch}/classification_report.txt')
+            except Exception:
+                pass
+
+            fig, ax = plt.subplots(figsize=(6, 5))
+            cm = np.zeros((len(classes), len(classes)), dtype=int)
+            for t, p in zip(all_true, all_pred):
+                if t in classes and p in classes:
+                    cm[classes.index(t)][classes.index(p)] += 1
+            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                        xticklabels=[f'{c}-d' for c in classes],
+                        yticklabels=[f'{c}-d' for c in classes], ax=ax)
+            ax.set_xlabel('Predicted'); ax.set_ylabel('True')
+            ax.set_title(f'Confusion Matrix (epoch {epoch})')
+            plt.tight_layout()
+            mlflow.log_figure(fig, f'plots/epoch_{epoch}/confusion_matrix.png')
+            plt.close()
+
         samples = []
         for i, (t, p, g) in enumerate(zip(test_texts[:15], preds[:15], test_targets[:15]), 1):
             samples.append(f'{i}. IN:  {t}\n   OUT: {p}\n   GT:  {g}\n')
         mlflow.log_text('\n'.join(samples), f'reports/epoch_{epoch}/prediction_samples.txt')
+        mlflow.log_text(bucket_repr, f'reports/epoch_{epoch}/accuracy_by_length.txt')
 
     return acc, preds
 
@@ -157,18 +208,29 @@ def main():
     parser.add_argument('--no-lora', dest='lora', action='store_false')
     parser.add_argument('--lora-r', type=int, default=8, help='LoRA rank')
     parser.add_argument('--lora-alpha', type=int, default=16, help='LoRA alpha')
+    parser.add_argument('--fp16', action='store_true', default=False,
+                        help='FP16 mixed precision (осторожно: может давать NaN на некоторых GPU)')
     args = parser.parse_args()
 
     # ── MLflow ──
     mlflow = None
     if args.mlflow:
         try:
+            import socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(0.5)
+            mlflow_ok = sock.connect_ex(('localhost', 5001)) == 0
+            sock.close()
+            if not mlflow_ok:
+                raise ConnectionRefusedError('MLflow сервер недоступен')
             import mlflow as _mlflow
             mlflow = _mlflow
             mlflow.set_tracking_uri('http://localhost:5001')
             mlflow.set_experiment('ruT5-itn')
             name = f'ruT5_ep{args.epochs}_lr{args.lr}_bs{args.batch_size}'
             if args.max_samples: name += f'_s{args.max_samples}'
+            os.environ['MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING'] = 'true'
+            os.environ['MLFLOW_SYSTEM_METRICS_SAMPLING_INTERVAL'] = '10'
             mlflow.start_run(run_name=name)
             mlflow.log_param('model', 'cointegrated/ruT5-small')
             mlflow.log_param('model_params_M', 65)
@@ -211,6 +273,7 @@ def main():
 
     if args.quick:
         args.epochs, args.max_len, args.max_samples, args.lr = 1, 32, 200, 1e-4
+        args.fp16 = False
 
     if args.max_samples and args.max_samples < train_df.height:
         train_df = train_df.head(args.max_samples)
@@ -222,11 +285,21 @@ def main():
     val_texts, val_targets = texts[split:], targets[split:]
 
     if mlflow:
-        mlflow.log_params({
+        params = {
             'epochs': args.epochs, 'batch_size': args.batch_size,
             'lr': args.lr, 'max_len': args.max_len,
             'max_samples': args.max_samples or 'all',
             'train_size': len(train_texts), 'test_size': len(val_texts),
+            'lora_r': args.lora_r, 'lora_alpha': args.lora_alpha,
+            'lora_trainable_M': f'{trainable/1e6:.1f}' if args.lora else 'full',
+            'device': dev_name, 'fp16': args.fp16,
+        }
+        mlflow.log_params(params)
+        src_lens = [len(t) for t in train_texts]
+        tgt_lens = [len(g) for g in train_targets]
+        mlflow.log_metrics({
+            'src_len_mean': np.mean(src_lens), 'src_len_std': np.std(src_lens),
+            'tgt_len_mean': np.mean(tgt_lens), 'tgt_len_std': np.std(tgt_lens),
         })
 
     train_ds = ITNDataset(train_texts, train_targets, tokenizer, args.max_len)
@@ -249,7 +322,7 @@ def main():
         report_to='none',
         dataloader_num_workers=0,
         dataloader_pin_memory=pin,
-        fp16=pin,
+        fp16=args.fp16,
     )
 
     callbacks = []

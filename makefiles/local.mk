@@ -2,7 +2,7 @@
 # ЛОКАЛЬНЫЙ ЗАПУСК (через .venv, без Docker)
 # ════════════════════════════════════════════════════════════
 
-.PHONY: run-local evaluate-local errors-local test-local eda-local synthetic-local train-local
+.PHONY: run-local evaluate-local errors-local test-local eda-local synthetic-local train-local fetch-data-local
 
 VENV_PY := .venv/bin/python3
 VENV_PY := .venv/bin/python
@@ -42,6 +42,17 @@ train-local:
 train-quick:
 	@printf "$(BLUE)${BOLD}[TRAIN-QUICK]$(NC) Быстрое обучение (200 samples, 1 epoch)...\n"
 	$(VENV_PY) scripts/train.py --data data/synthetic.f --quick --mlflow
+
+fetch-data-local:
+	@printf "$(BLUE)${BOLD}[FETCH-DATA]$(NC) Загрузка test.f и calibration.f с Google Drive...\n"
+	@mkdir -p data
+	gdown --folder "https://drive.google.com/drive/folders/1jgm9hGvZETTzhn4bu43e5UlI5gT12pud" -O data/ --remaining-ok
+	@for f in data/*/*.f; do \
+	  if [ -f "$$f" ]; then \
+	    mv "$$f" data/; \
+	  fi; \
+	done
+	@rmdir data/*/ 2>/dev/null; true
 
 fetch-real-local:
 	@printf "$(BLUE)${BOLD}[FETCH]$(NC)     Сбор реальных данных из интернета...\n"

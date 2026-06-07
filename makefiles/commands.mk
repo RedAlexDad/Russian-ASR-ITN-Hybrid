@@ -2,7 +2,7 @@
 # КОМАНДЫ В КОНТЕЙНЕРЕ
 # ════════════════════════════════════════════════════════════
 
-.PHONY: run evaluate errors test validate eda
+.PHONY: run evaluate errors test validate eda fetch-data
 
 run:
 	$(require-container)
@@ -49,6 +49,11 @@ evaluate-synthetic:
 	  if normalize_text(r['task_text'])==r['ground_truth']))]; \
 	  c=sum(1 for r in df.iter_rows(named=True) if normalize_text(r['task_text'])==r['ground_truth']); \
 	  print(f'  overall: {c}/{len(df)} = {c/len(df)*100:.2f}%')"
+
+fetch-data:
+	$(require-container)
+	@printf "$(BLUE)${BOLD}[FETCH-DATA]$(NC) Загрузка test.f и calibration.f с Google Drive...\n"
+	$(COMPOSE) exec app gdown --folder "https://drive.google.com/drive/folders/1jgm9hGvZETTzhn4bu43e5UlI5gT12pud" -O data/ --remaining-ok
 
 fetch-real:
 	$(require-container)
