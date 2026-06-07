@@ -63,12 +63,87 @@ def lookup_word(word):
     return None
 
 
+_ORDINAL_FUZZY_CACHE = {}
+
+
+def _levenshtein(s1, s2):
+    """Расстояние Левенштейна между двумя строками."""
+    if len(s1) < len(s2):
+        return _levenshtein(s2, s1)
+    if len(s2) == 0:
+        return len(s1)
+    prev = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        curr = [i + 1]
+        for j, c2 in enumerate(s2):
+            curr.append(min(curr[j] + 1, prev[j + 1] + 1, prev[j] + (c1 != c2)))
+        prev = curr
+    return prev[len(s2)]
+
+
+def _fuzzy_ordinal_match(word):
+    """Нечёткий поиск слова в ORDINAL_SET.
+
+    Возвращает (каноническая_форма, значение) или None.
+    Используется для слов с опечатками, ё/е, пропущенными буквами,
+    отсутствующими падежными формами.
+
+    Алгоритм:
+     1. Levenshtein distance против всех ключей ORDINAL_SET
+     2. Отсев по длине (разница ≤ 3)
+     3. Префиксный фильтр (первые 5 символов не более 1 ошибки)
+     4. Порог расстояния: max(1, len(w) // 6 + 1)
+    """
+    w = word.lower()
+    # Минимальная длина 9 — короткие слова дают ложные срабатывания
+    # ("потому"→"пятому", "период"→"первое")
+    if len(w) <= 8:
+        return None
+    if w in _ORDINAL_FUZZY_CACHE:
+        return _ORDINAL_FUZZY_CACHE[w]
+
+    best_key = None
+    best_dist = 99
+    for key in ORDINAL_SET:
+        if abs(len(key) - len(w)) > 3:
+            continue
+
+        # Префиксный фильтр: первые 5 символов — не более 1 отличия
+        prefix_n = min(5, len(w), len(key))
+        prefix_diffs = sum(1 for a, b in zip(w[:prefix_n], key[:prefix_n]) if a != b)
+        if prefix_diffs > 1:
+            continue
+
+        dist = _levenshtein(w, key)
+        if dist < best_dist:
+            best_dist = dist
+            best_key = key
+
+    threshold = max(1, len(w) // 6 + 1)
+    if best_key is not None and best_dist <= threshold:
+        result = (best_key, ORDINALS[best_key])
+    else:
+        result = None
+    _ORDINAL_FUZZY_CACHE[w] = result
+    return result
+
+
 def is_ordinal_word(word):
     """Проверяет, является ли слово порядковым числительным.
 
-    Использует ORDINAL_SET (множество) для O(1) проверки.
+    Сначала точное совпадение по ORDINAL_SET (O(1)),
+    затем нечёткое через Levenshtein.
+
+    Если слово уже найдено в NUMERAL_DICT (кардинальное) или ASR_ERRORS,
+    fuzzy-матчинг не применяется — это предотвращает ложное определение
+    кардинальных чисел как порядковых ("девяносто"→"девяностого").
     """
-    return word.lower() in ORDINAL_SET
+    w = word.lower()
+    if w in ORDINAL_SET:
+        return True
+    if w in NUMERAL_DICT or w in ASR_ERRORS:
+        return False
+    return _fuzzy_ordinal_match(w) is not None
 
 
 def ordinal_value(word):
@@ -78,4 +153,12 @@ def ordinal_value(word):
       ordinal_value("первого") -> "1"
       ordinal_value("двадцать") -> "20"
     """
-    return ORDINALS.get(word.lower())
+    w = word.lower()
+    if w in ORDINALS:
+        return ORDINALS[w]
+    if w in NUMERAL_DICT or w in ASR_ERRORS:
+        return None
+    match = _fuzzy_ordinal_match(w)
+    if match is not None:
+        return match[1]
+    return None
