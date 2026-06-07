@@ -37,16 +37,83 @@ NUMERAL_DICT.update(
 )
 
 
+# ── Динамическое расширение словаря через корни ──
+
+_NUMERIC_ROOTS = [
+    ("миллиард", 1000000000, 6, True),
+    ("миллион", 1000000, 5, True),
+    ("тысяч", 1000, 4, True),
+    ("пятидесят", 50, 2, False),
+    ("шестидесят", 60, 2, False),
+    ("семидесят", 70, 2, False),
+    ("восьмидесят", 80, 2, False),
+    ("двадцат", 20, 2, False),
+    ("тридцат", 30, 2, False),
+    ("девяност", 90, 2, False),
+    ("десят", 10, 1, False),
+    ("сорок", 40, 2, False),
+    ("девятисот", 900, 3, False),
+    ("восьмисот", 800, 3, False),
+    ("семисот", 700, 3, False),
+    ("шестисот", 600, 3, False),
+    ("пятисот", 500, 3, False),
+    ("четырехсот", 400, 3, False),
+    ("трехсот", 300, 3, False),
+    ("двухсот", 200, 3, False),
+    ("сот", 100, 3, False),
+]
+
+_INFLECTION_SUFFIXES = {"", "а", "у", "е", "и", "ой", "ых", "ым", "ыми",
+                         "ом", "ам", "ами", "ах", "ей", "ю", "я", "ь"}
+
+
+def _cardinal_from_root(word):
+    """Пытается определить числительное по корню.
+
+    Сортировка по убыванию длины корня, чтобы "пятидесят" (7)
+    матчился раньше, чем "десят" (5).
+    """
+    w = word.lower()
+    for root, val, mag, is_mult in sorted(_NUMERIC_ROOTS, key=lambda x: -len(x[0])):
+        if root not in w:
+            continue
+        idx = w.index(root)
+        suffix = w[idx + len(root):]
+        if suffix in _INFLECTION_SUFFIXES:
+            return (val, mag, is_mult)
+    return None
+
+
+def expand_dictionaries(texts):
+    """Сканирует тексты и добавляет неизвестные числительные в словарь.
+
+    Вызвать один раз при запуске на всех доступных данных.
+    """
+    seen = set()
+    added = []
+    for text in texts:
+        for w in text.split():
+            wc = w.strip(".,!?;:()[]{}«»\"").lower()
+            if len(wc) <= 3 or wc in seen or wc in NUMERAL_DICT or wc in ASR_ERRORS:
+                continue
+            seen.add(wc)
+            result = _cardinal_from_root(wc)
+            if result:
+                NUMERAL_DICT[wc] = (result[0], result[1])
+                added.append(wc)
+    return added
+
+
 def lookup_word(word):
     """Ищет слово в словаре числительных.
 
     Возвращает (значение, порядок_величины, is_multiplier) или None.
 
     Алгоритм поиска:
-    1. Прямой поиск в NUMERAL_DICT (O(1) по хешу)
-    2. Если не найдено — поиск в ASR_ERRORS (O(1))
-       и повторный поиск канонической формы
-    3. Если ничего не найдено — None
+     1. Прямой поиск в NUMERAL_DICT (O(1) по хешу)
+     2. Если не найдено — поиск в ASR_ERRORS (O(1))
+        и повторный поиск канонической формы
+     3. Если не найдено — root-based детекция через известные корни
 
     is_multiplier=True означает, что это слово-умножитель
     (тысяча, миллион), который в парсере умножает накопленное значение.
@@ -60,7 +127,7 @@ def lookup_word(word):
         if canonical in NUMERAL_DICT:
             val, mag = NUMERAL_DICT[canonical]
             return (val, mag, canonical in MULTIPLIERS)
-    return None
+    return _cardinal_from_root(w)
 
 
 _ORDINAL_FUZZY_CACHE = {}
