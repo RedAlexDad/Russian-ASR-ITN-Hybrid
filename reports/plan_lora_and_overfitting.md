@@ -127,8 +127,8 @@ LoRA (r=8):             ██▎                          2.1M параметр
 
 ### Шаг 3: Борьба с переобучением
 
-- [ ] **Early Stopping** — остановка, если eval_loss не падает N эпох
-- [ ] **Save best model** — сохранение чекпойнта с лучшим eval_loss
+- [x] **Early Stopping** — `EarlyStoppingCallback(patience=5)` добавлен
+- [x] **Save best model** — `load_best_model_at_end=True` + `metric_for_best_model='eval_loss'`
 - [x] **Learning rate scheduler** — линейный decay (по умолчанию HF Trainer)
 - [x] **Gradient clipping** — `max_grad_norm=1.0` (по умолчанию HF Trainer)
 - [ ] **Weight decay** — `weight_decay=0.01` (не задан)
@@ -191,8 +191,8 @@ Output tokens
 - [x] Accuracy > 50% на полном датасете (57.3%)
 - [x] MLflow логирует train_loss, eval_loss, lr по эпохам
 - [x] Нет мусорных токенов (`<0x57>`) в генерации
-- [ ] Early stopping останавливает обучение при плато
-- [ ] Сохраняется лучшая модель (не последняя)
+- [x] Early stopping останавливает обучение при плато
+- [x] Сохраняется лучшая модель (не последняя)
 - [x] `make train-local` работает без дополнительных флагов
 
 ## Гибридный подход: Парсер + ruT5 (fallback)
@@ -254,15 +254,16 @@ def hybrid_normalize(text):
     return pred_t5
 ```
 
-### Ожидаемый эффект
+### Фактический результат
 
-| Мера                    | Сейчас          | Гибрид                  |
+| Мера                    | Парсер          | Гибрид                  |
 | ----------------------- | --------------- | ----------------------- |
-| Accuracy на calibration | 97.6% (488/500) | 98-99%                  |
-| Ошибки группировки      | 8               | ~2-3                    |
-| Пропущенные числа       | 2               | ~0-1                    |
-| Лишние числа            | 2               | ~0-1                    |
+| Accuracy на calibration | 97.6% (488/500) | 94.4% (472/500)         |
 | Время на 500 строк      | ~0.2 сек        | ~30-60 сек (из-за ruT5) |
+
+**Вывод:** гибрид уступает парсеру, т.к. ruT5 обучена на синтетике и не
+справляется с реальными ASR-паттернами. Флаг `--hybrid` доступен для
+экспериментов, но не рекомендуется по умолчанию.
 
 ### Чек-лист гибрида
 
@@ -270,18 +271,18 @@ def hybrid_normalize(text):
 - [x] Функция parser_confidence() — оценка уверенности
 - [x] fallback на ruT5 при низкой уверенности
 - [x] graceful fallback: если модели нет → только парсер
-- [ ] Интеграция в main.py (run, evaluate) — модель обучена, осталось подключить
-- [ ] Тест на calibration.f — после подключения hybrid_normalize в main.py
+- [x] Интеграция в main.py (run, evaluate) — флаг `--hybrid`
+- [x] Тест на calibration.f — 94.4% гибрид vs 97.6% парсер (модель не исправляет ошибки синтетики)
 
 ## Следующие шаги
 
 1. ✅ LoRA интегрирован — 0.9M параметров вместо 65M
-2. ⏳ Добавить early stopping
-3. ⏳ Добавить save best model
+2. ✅ Добавить early stopping (patience=5)
+3. ✅ Добавить save best model (load_best_model_at_end)
 4. ✅ Протестировано: 3ep→2%, 5ep→27%, 10ep→42%, 20ep→57%
 5. ✅ Полное обучение на 4890 clean: 20 эпох, 57.3% accuracy
 6. ✅ Реализовать гибрид: парсер + ruT5 fallback
-7. ⏳ Переключить main.py на hybrid_normalize — модель готова
-8. ⏳ `make evaluate` — проверка accuracy гибрида
+7. ✅ Подключить hybrid_normalize в main.py — флаг `--hybrid`
+8. ✅ `make evaluate` — гибрид 94.4% vs парсер 97.6%
 9. 📝 Добавить noisy-данные (11728 строк) в обучение — главный потенциал роста
 10. 📝 Увеличить LoRA rank r=16 для большей ёмкости

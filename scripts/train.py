@@ -29,6 +29,7 @@ from transformers import (
     AutoModelForSeq2SeqLM,
     AutoTokenizer,
     DataCollatorForSeq2Seq,
+    EarlyStoppingCallback,
     Seq2SeqTrainer,
     Seq2SeqTrainingArguments,
     TrainerCallback,
@@ -282,6 +283,8 @@ def main():
     parser.add_argument('--lora-alpha', type=int, default=16, help='LoRA alpha')
     parser.add_argument('--fp16', action='store_true', default=False,
                         help='FP16 mixed precision (осторожно: может давать NaN на некоторых GPU)')
+    parser.add_argument('--early-stopping-patience', type=int, default=5,
+                        help='Stop if eval_loss does not improve for N epochs (0=disable)')
     args = parser.parse_args()
 
     # ── MLflow ──
@@ -365,6 +368,7 @@ def main():
             'lora_r': args.lora_r, 'lora_alpha': args.lora_alpha,
             'lora_trainable_M': f'{trainable/1e6:.1f}' if args.lora else 'full',
             'device': dev_name, 'fp16': args.fp16,
+            'early_stopping_patience': args.early_stopping_patience,
         }
         mlflow.log_params(params)
         src_lens = [len(t) for t in train_texts]
@@ -389,6 +393,9 @@ def main():
         eval_strategy='epoch',
         save_strategy='epoch',
         save_total_limit=1,
+        load_best_model_at_end=True,
+        metric_for_best_model='eval_loss',
+        greater_is_better=False,
         predict_with_generate=True,
         generation_max_length=args.max_len,
         report_to='none',
@@ -402,6 +409,8 @@ def main():
         callbacks.append(MLflowCallback(mlflow, model=model, tokenizer=tokenizer,
                                          val_texts=val_texts, val_targets=val_targets,
                                          output_dir=out_dir))
+    if args.early_stopping_patience > 0:
+        callbacks.append(EarlyStoppingCallback(early_stopping_patience=args.early_stopping_patience))
 
     data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
 

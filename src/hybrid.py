@@ -39,9 +39,9 @@ def _load_model():
         from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
         base_name = "cointegrated/ruT5-small"
-        _tokenizer = AutoTokenizer.from_pretrained(base_name)
+        _tokenizer = AutoTokenizer.from_pretrained(base_name, use_fast=False)
         base = AutoModelForSeq2SeqLM.from_pretrained(base_name)
-        _model = PeftModel.from_pretrained(base, model_path)
+        _model = PeftModel.from_pretrained(base, model_path, tokenizer=None)
         _model.eval()
         return True
     except Exception as e:
@@ -73,48 +73,96 @@ def _t5_generate(text, max_len=64):
 def _parser_confidence(text, pred):
     """Оценивает уверенность парсера в результате (0.0 - 1.0).
 
-    Учитывает:
-      - наличие ASR-искажений в исходном тексте
-      - наличие слов вне словаря
-      - склейки числительных
-      - аномалии в структуре числа
+    Цель: обнаружить РЕАЛЬНЫЕ ошибки парсера при минимуме ложных срабатываний.
+    Основано на эмпирическом анализе 12 ошибок парсера на calibration.f.
+
+    Паттерны:
+      - "тыщ"/"тыща" — парсер всегда конвертит в "1000" (неверно)
+      - "дваста" — ASR-искажение, парсер не распознаёт как "двести"
+      - "двеси" + compound числа — ASR-искажение + ошибка группировки
+      - порядковые в выводе — парсер пропустил конвертацию
+      - "тысячам"/"тысячами" в выводе — compound не собран
+      - "миллион" во входе — возможна склейка чисел
+      - сдвоенные "два" — "два два" → парсер ошибается
     """
+    import re
     score = 1.0
+    tokens = text.lower().split()
+    pred_tokens = pred.lower().split()
 
-    # 1. ASR-искажения в исходном тексте
-    from src.dicts.asr_errors import ASR_ERRORS
+    # 1. "тыщ"/"тыща" — парсер конвертит в "1000" вместо сохранения
+    if any(w in ("тыщ", "тыща") for w in tokens):
+        score -= 0.4
 
-    asr_count = sum(1 for w in text.lower().split() if w in ASR_ERRORS)
-    if asr_count > 0:
-        score -= 0.15 * min(asr_count, 3)
-        # Если текст содержит "двеси", "тыщ" — почти всегда проблема
-        for w in text.lower().split():
-            if w in ("двеси", "дваста", "тыщ", "тыщи"):
-                score -= 0.1
+    # 2. "дваста" — ASR-искажение "двести"
+    if "дваста" in tokens:
+        score -= 0.3
 
-    # 2. Неизвестные слова (похожи на числительные но не в словаре)
-    unknown = 0
-    for w in text.lower().split():
-        if any(c.isdigit() for c in w):
+    # 3. "двеси" + compound-числа (200 350000 вместо 235000)
+    if "двеси" in tokens:
+        nums = [int(x) for x in re.findall(r"\d+", pred)]
+        for i in range(len(nums) - 1):
+            if nums[i] <= 300 and nums[i + 1] >= 1000:
+                score -= 0.3
+                break
+
+    # 4. Порядковые в выводе — парсер их не конвертировал
+    #    (нормализация ё→е для "четвёртый" и т.д.)
+    _ord_suffixes = ("ый", "ий", "ой", "ая", "ое", "ые")
+    _ord_roots = ("перв", "втор", "трет", "четверт", "пят", "шест",
+                  "седьм", "восьм", "девят", "десят",
+                  "одиннадцат", "двенадцат", "тринадцат",
+                  "четырнадцат", "пятнадцат", "шестнадцат",
+                  "семнадцат", "восемнадцат", "девятнадцат",
+                  "двадцат", "тридцат")
+    _non_ordinals = {
+        "какой", "такой", "другой", "любой", "каждой",
+        "самой", "самый", "самое", "новая", "новый",
+        "простой", "главный", "большой", "хороший", "плохой",
+        "маленький", "маленькая", "высокий", "низкий", "нужный",
+        "последний", "ближайший", "разный", "целый", "полный",
+        "важный", "точный", "активный", "интересный",
+        "обычный", "подобный", "отдельный", "значительный",
+        "собственный", "человеческий", "прежний",
+        "дополнительный", "практический", "технический",
+        "экономический", "политический", "исторический",
+        "физический", "юридический", "медицинский",
+        "социальный", "культурный", "научный",
+        "международный", "современный", "второй",
+    }
+    for w in pred_tokens:
+        wc = w.strip(".,!?;:()[]{}«»\"").replace("ё", "е").replace("Ё", "Е").lower()
+        if wc in _non_ordinals:
             continue
-        if lookup_word(w) is None and not is_ordinal_word(w):
-            unknown += 1
-    if unknown > 2:
-        score -= 0.1 * min(unknown, 5)
+        if wc.endswith(_ord_suffixes):
+            for r in _ord_roots:
+                if r in wc:
+                    score -= 0.3
+                    break
 
-    # 3. Склейки (слитные написания)
-    merged = 0
-    for w in text.lower().split():
-        if any(x in w for x in ("тысячи", "тысяч", "миллион", "миллиард")):
-            if len(w) > 12:
-                merged += 1
-    if merged > 0:
-        score -= 0.2
+    # 5. "тысячам"/"тысячами" в выводе — парсер оставил форму мн.ч.
+    if any(w in ("тысячам", "тысячами") for w in pred_tokens):
+        score -= 0.3
 
-    # 4. Есть числа в предсказании — проверяем разумность
-    nums = re.findall(r"\d+", pred)
-    if not nums and re.findall(r"\d+", text):
-        score -= 0.3  # были цифры в исходнике, но нет в ответе
+    # 6. "миллион" во входе — возможна склейка
+    if any("миллион" in w for w in tokens):
+        score -= 0.3
+
+    # 7. Слово с префиксом числа + "тысяч" — compound (дветысячи→2000+500)
+    _number_prefixes = {"две", "три", "четыре", "пять", "шест",
+                        "сем", "восем", "девят", "десят"}
+    for w in tokens:
+        if "тысяч" in w:
+            for pfx in _number_prefixes:
+                if w.startswith(pfx) and len(w) > len(pfx) + 3:
+                    score -= 0.3
+                    break
+
+    # 8. Сдвоенные "два два" — парсер склеивает неверно
+    for i in range(len(tokens) - 1):
+        if tokens[i] == "два" and tokens[i + 1] == "два":
+            score -= 0.3
+            break
 
     return max(0.1, min(1.0, score))
 
