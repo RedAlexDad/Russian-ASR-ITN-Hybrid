@@ -37,7 +37,27 @@ synthetic-local:
 
 train-local:
 	@printf "$(BLUE)${BOLD}[TRAIN]$(NC)    Обучение ruT5-small на синтетике...\n"
-	$(VENV_PY) scripts/train.py --data data/synthetic.f --epochs $(or $(EPOCHS),3) --batch-size $(or $(BATCH_SIZE),8) $(if $(MAX_SAMPLES),--max-samples $(MAX_SAMPLES),) --mlflow
+	$(VENV_PY) scripts/train.py --data data/synthetic.f \
+	  --epochs $(or $(EPOCHS),3) \
+	  --batch-size $(or $(BATCH_SIZE),8) \
+	  --lora-r $(LORA_R) \
+	  --lora-alpha $(LORA_ALPHA) \
+	  --noise-level $(NOISE_LEVEL) \
+	  $(if $(MAX_SAMPLES),--max-samples $(MAX_SAMPLES),) \
+	  $(if $(MODEL_PATH),--model-path $(MODEL_PATH),) \
+	  --mlflow
+
+train-noisy:
+	@printf "$(BLUE)${BOLD}[TRAIN-NOISY]$(NC) Обучение с noisy-данными (r=$(LORA_R))...\n"
+	$(VENV_PY) scripts/train.py --data data/synthetic.f \
+	  --epochs $(or $(EPOCHS),10) \
+	  --batch-size $(or $(BATCH_SIZE),8) \
+	  --lora-r $(LORA_R) \
+	  --lora-alpha $(LORA_ALPHA) \
+	  --noise-level noisy \
+	  $(if $(MAX_SAMPLES),--max-samples $(MAX_SAMPLES),) \
+	  $(if $(MODEL_PATH),--model-path $(MODEL_PATH),) \
+	  --mlflow
 
 train-quick:
 	@printf "$(BLUE)${BOLD}[TRAIN-QUICK]$(NC) Быстрое обучение (200 samples, 1 epoch)...\n"

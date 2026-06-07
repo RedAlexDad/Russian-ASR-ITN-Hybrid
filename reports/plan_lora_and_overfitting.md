@@ -136,8 +136,10 @@ LoRA (r=8):             ██▎                          2.1M параметр
 
 ### Шаг 4: Аугментация данных
 
-- [ ] Добавить шум в train (noisy-слой уже в датасете, 11728 строк — не использованы)
-- [ ] Увеличить разнообразие шаблонов
+- [x] Resume: `--model-path` загружает LoRA адаптер, `make train-local MODEL_PATH=...`
+- [x] Noisy: `--noise-level` (clean/noisy/all), `make train-noisy`
+- [x] LoRA rank: `--lora-r`, `make train-local LORA_R=16`
+- [ ] Добавить разнообразие шаблонов
 - [ ] Добавить реальные данные (Wikipedia + RSS) в train (make fetch-real-local)
 
 ### Шаг 5: Метрики
@@ -284,5 +286,7 @@ def hybrid_normalize(text):
 6. ✅ Реализовать гибрид: парсер + ruT5 fallback
 7. ✅ Подключить hybrid_normalize в main.py — флаг `--hybrid`
 8. ✅ `make evaluate` — гибрид 94.4% vs парсер 97.6%
-9. 📝 Добавить noisy-данные (11728 строк) в обучение — главный потенциал роста
-10. 📝 Увеличить LoRA rank r=16 для большей ёмкости
+9. ✅ Resume: `--model-path` загружает LoRA адаптер, дообучает дальше
+10. ✅ Noisy: `--noise-level` (clean/noisy/all), `make train-noisy`  
+11. ✅ LoRA rank: `--lora-r N`, `make train-local LORA_R=16`
+12. 📝 Запустить `make train-noisy MODEL_PATH=<run> LORA_R=16 EPOCHS=10`

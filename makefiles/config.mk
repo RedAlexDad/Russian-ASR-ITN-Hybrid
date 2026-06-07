@@ -4,12 +4,16 @@
 
 SHELL := /bin/bash
 
-DATA_DIR  := data
-INPUT     ?= $(DATA_DIR)/test.f
-CALIB     ?= $(DATA_DIR)/calibration.f
-OUTPUT    ?= answer.f
-PY        := python3
-COMPOSE   := docker compose
+DATA_DIR    := data
+INPUT       ?= $(DATA_DIR)/test.f
+CALIB       ?= $(DATA_DIR)/calibration.f
+OUTPUT      ?= answer.f
+PY          := python3
+COMPOSE     := docker compose
+LORA_R      ?= 8
+LORA_ALPHA  ?= 16
+NOISE_LEVEL ?= clean
+MODEL_PATH  ?=
 
 # ════════════════════════════════════════════════════════════
 # ЦВЕТА

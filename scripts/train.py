@@ -285,6 +285,10 @@ def main():
                         help='FP16 mixed precision (осторожно: может давать NaN на некоторых GPU)')
     parser.add_argument('--early-stopping-patience', type=int, default=5,
                         help='Stop if eval_loss does not improve for N epochs (0=disable)')
+    parser.add_argument('--model-path', default=None,
+                        help='Resume from saved LoRA adapter (path to model dir)')
+    parser.add_argument('--noise-level', default='clean', choices=['clean', 'noisy', 'all'],
+                        help='Which noise level to use for training (default: clean)')
     args = parser.parse_args()
 
     # ── MLflow ──
@@ -321,8 +325,15 @@ def main():
     model.config.tie_word_embeddings = False
     print(f'  Params: {sum(p.numel() for p in model.parameters())/1e6:.0f}M')
 
+    # Resume from saved LoRA adapter
+    if args.model_path:
+        from peft import PeftModel
+        model = PeftModel.from_pretrained(model, args.model_path)
+        trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        total = sum(p.numel() for p in model.parameters())
+        print(f'  Resumed from {args.model_path} (trainable={trainable/1e6:.1f}M/{total/1e6:.0f}M)')
     # LoRA — обучаем только адаптеры (2-4M параметров вместо 65M)
-    if args.lora:
+    elif args.lora:
         from peft import LoraConfig, get_peft_model, TaskType
         lora_config = LoraConfig(
             task_type=TaskType.SEQ_2_SEQ_LM,
@@ -342,9 +353,14 @@ def main():
 
     print(f'\nLoading data: {args.data}')
     df = pl.read_ipc(args.data)
-    train_df = df.filter(pl.col('noise_level') == 'clean')
+    if args.noise_level == 'all':
+        train_df = df
+    elif args.noise_level == 'noisy':
+        train_df = df.filter(pl.col('noise_level') == 'noisy')
+    else:
+        train_df = df.filter(pl.col('noise_level') == 'clean')
     if train_df.height == 0: train_df = df
-    print(f'  Clean rows: {train_df.height}')
+    print(f'  Rows ({args.noise_level}): {train_df.height}')
 
     if args.quick:
         args.epochs, args.max_len, args.max_samples, args.lr = 1, 32, 200, 1e-4
@@ -359,6 +375,7 @@ def main():
     train_texts, train_targets = texts[:split], targets[:split]
     val_texts, val_targets = texts[split:], targets[split:]
 
+    model_path_label = args.model_path or 'cointegrated/ruT5-small'
     if mlflow:
         params = {
             'epochs': args.epochs, 'batch_size': args.batch_size,
@@ -369,6 +386,8 @@ def main():
             'lora_trainable_M': f'{trainable/1e6:.1f}' if args.lora else 'full',
             'device': dev_name, 'fp16': args.fp16,
             'early_stopping_patience': args.early_stopping_patience,
+            'model_path': model_path_label,
+            'noise_level': args.noise_level,
         }
         mlflow.log_params(params)
         src_lens = [len(t) for t in train_texts]
