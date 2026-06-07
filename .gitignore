@@ -12,6 +12,10 @@ env/
 data/
 answer.f
 
+# Jupyter
+.ipynb_checkpoints/
+*_checkpoint.ipynb
+
 # OS
 .DS_Store
 Thumbs.db
