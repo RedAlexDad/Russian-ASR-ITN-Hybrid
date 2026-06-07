@@ -69,8 +69,13 @@ class ITNDataset(Dataset):
 
 class MLflowCallback(TrainerCallback):
     """Логирует метрики в MLflow на каждом шаге и по эпохам."""
-    def __init__(self, mlflow):
+    def __init__(self, mlflow, model=None, tokenizer=None, val_texts=None, val_targets=None, output_dir=None):
         self.mlflow = mlflow
+        self.model = model
+        self.tokenizer = tokenizer
+        self.val_texts = val_texts
+        self.val_targets = val_targets
+        self.output_dir = output_dir
 
     def on_log(self, args, state, control, logs=None, **kwargs):
         if logs:
@@ -85,6 +90,12 @@ class MLflowCallback(TrainerCallback):
         epoch = int(state.epoch) if state.epoch else 0
         self.mlflow.log_metric('epoch', epoch, step=epoch)
         self.mlflow.log_metric('train_speed_it_per_sec', state.global_step / (time.time() - self._train_start), step=epoch)
+        if self.model is not None and self.val_texts and self.val_targets:
+            acc, _ = evaluate_and_report(
+                self.model, self.tokenizer, self.val_texts, self.val_targets,
+                epoch, self.mlflow, self.output_dir
+            )
+            self.mlflow.log_metric('val_accuracy', acc / 100, step=epoch)
 
     def on_train_begin(self, args, state, control, **kwargs):
         self._train_start = time.time()
@@ -158,6 +169,81 @@ def evaluate_and_report(model, tokenizer, test_texts, test_targets, epoch, mlflo
             'number_accuracy': num_acc,
         }, step=epoch)
 
+        # ── Per-epoch plots ──
+        fig, axes = plt.subplots(2, 3, figsize=(16, 10))
+
+        # 1. Confusion matrix (digit lengths)
+        if all_true:
+            classes = sorted(set(all_true + all_pred))
+            cm = np.zeros((len(classes), len(classes)), dtype=int)
+            for t, p in zip(all_true, all_pred):
+                if t in classes and p in classes:
+                    cm[classes.index(t)][classes.index(p)] += 1
+            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+                        xticklabels=[f'{c}-d' for c in classes],
+                        yticklabels=[f'{c}-d' for c in classes], ax=axes[0, 0])
+            axes[0, 0].set_xlabel('Predicted'); axes[0, 0].set_ylabel('True')
+            axes[0, 0].set_title('Confusion Matrix (digit length)')
+
+        # 2. Prediction vs target length scatter
+        pred_lens = [len(p) for p in preds]
+        tgt_lens = [len(t) for t in test_targets]
+        axes[0, 1].scatter(tgt_lens, pred_lens, alpha=0.3, s=10)
+        max_ln = max(max(pred_lens), max(tgt_lens))
+        axes[0, 1].plot([0, max_ln], [0, max_ln], 'r--', alpha=0.5)
+        axes[0, 1].set_xlabel('Target length'); axes[0, 1].set_ylabel('Prediction length')
+        axes[0, 1].set_title(f'Length correlation (r={np.corrcoef(pred_lens, tgt_lens)[0,1]:.2f})')
+
+        # 3. Number count comparison
+        src_nums = [len(re.findall(r'\d+', s)) for s in test_texts]
+        pred_nums = [len(re.findall(r'\d+', p)) for p in preds]
+        tgt_nums = [len(re.findall(r'\d+', g)) for g in test_targets]
+        axes[0, 2].hist([src_nums, tgt_nums, pred_nums], bins=range(8),
+                        label=['Input', 'Target', 'Pred'], alpha=0.6)
+        axes[0, 2].set_xlabel('Number count'); axes[0, 2].set_ylabel('Frequency')
+        axes[0, 2].set_title('Number count distribution'); axes[0, 2].legend()
+
+        # 4. Accuracy by input length (bar chart)
+        bucket_names = []
+        bucket_accs = []
+        bucket_counts = []
+        for k in buckets:
+            if buckets[k]:
+                bucket_names.append(k)
+                bucket_accs.append(sum(buckets[k]) / len(buckets[k]) * 100)
+                bucket_counts.append(len(buckets[k]))
+        if bucket_names:
+            colors = ['green' if a > 50 else 'orange' if a > 20 else 'red' for a in bucket_accs]
+            axes[1, 0].bar(bucket_names, bucket_accs, color=colors)
+            for i, (a, c) in enumerate(zip(bucket_accs, bucket_counts)):
+                axes[1, 0].text(i, a + 1, f'{a:.0f}%\n(n={c})', ha='center', fontsize=8)
+            axes[1, 0].set_ylabel('Accuracy (%)'); axes[1, 0].set_title('Accuracy by input length')
+
+        # 5. CER distribution
+        cer_per_sample = []
+        for p, t in zip(preds, test_targets):
+            mlen = max(len(p), len(t))
+            if mlen == 0: continue
+            errs = sum(1 for a, b in zip(p, t) if a != b) + abs(len(p) - len(t))
+            cer_per_sample.append(errs / mlen)
+        if cer_per_sample:
+            axes[1, 1].hist(cer_per_sample, bins=30, color='coral', edgecolor='black')
+            axes[1, 1].axvline(cer, color='red', linestyle='--', label=f'Mean CER={cer:.3f}')
+            axes[1, 1].set_xlabel('CER'); axes[1, 1].set_ylabel('Samples')
+            axes[1, 1].set_title('CER distribution per sample'); axes[1, 1].legend()
+
+        # 6. Text length delta (pred - target)
+        deltas = [len(p) - len(t) for p, t in zip(preds, test_targets)]
+        axes[1, 2].hist(deltas, bins=30, color='mediumseagreen', edgecolor='black')
+        axes[1, 2].axvline(0, color='red', linestyle='--')
+        axes[1, 2].set_xlabel('Δ chars (pred - target)'); axes[1, 2].set_ylabel('Samples')
+        axes[1, 2].set_title('Prediction length delta')
+
+        plt.tight_layout()
+        mlflow.log_figure(fig, f'plots/epoch_{epoch}/evaluation_dashboard.png')
+        plt.close()
+
+        # ── Classification report ──
         if all_true:
             from sklearn.metrics import classification_report
             classes = sorted(set(all_true + all_pred))
@@ -168,20 +254,6 @@ def evaluate_and_report(model, tokenizer, test_texts, test_targets, epoch, mlflo
                 mlflow.log_text(report, f'reports/epoch_{epoch}/classification_report.txt')
             except Exception:
                 pass
-
-            fig, ax = plt.subplots(figsize=(6, 5))
-            cm = np.zeros((len(classes), len(classes)), dtype=int)
-            for t, p in zip(all_true, all_pred):
-                if t in classes and p in classes:
-                    cm[classes.index(t)][classes.index(p)] += 1
-            sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
-                        xticklabels=[f'{c}-d' for c in classes],
-                        yticklabels=[f'{c}-d' for c in classes], ax=ax)
-            ax.set_xlabel('Predicted'); ax.set_ylabel('True')
-            ax.set_title(f'Confusion Matrix (epoch {epoch})')
-            plt.tight_layout()
-            mlflow.log_figure(fig, f'plots/epoch_{epoch}/confusion_matrix.png')
-            plt.close()
 
         samples = []
         for i, (t, p, g) in enumerate(zip(test_texts[:15], preds[:15], test_targets[:15]), 1):
@@ -327,7 +399,9 @@ def main():
 
     callbacks = []
     if mlflow:
-        callbacks.append(MLflowCallback(mlflow))
+        callbacks.append(MLflowCallback(mlflow, model=model, tokenizer=tokenizer,
+                                         val_texts=val_texts, val_targets=val_targets,
+                                         output_dir=out_dir))
 
     data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
 
