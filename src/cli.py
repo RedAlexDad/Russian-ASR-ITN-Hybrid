@@ -63,7 +63,22 @@ def cmd_evaluate(args):
 
     pct = correct / total * 100
     print(f"Accuracy: {correct}/{total} = {pct:.2f}%")
-    print()
+
+    has_noise = "noise_level" in df.columns
+    if has_noise:
+        for group in ["clean", "noisy"]:
+            sub = df[df["noise_level"] == group]
+            if len(sub) == 0:
+                continue
+            g_correct = 0
+            for _, row in sub.iterrows():
+                pred = normalize(row["task_text"])
+                if pred == row["ground_truth"]:
+                    g_correct += 1
+            g_pct = g_correct / len(sub) * 100
+            print(f"         {group}:  {g_correct}/{len(sub)} = {g_pct:.2f}%")
+        print()
+
     print("═══ EDA ═══")
     eda.report_evaluate(df)
     return correct / total
