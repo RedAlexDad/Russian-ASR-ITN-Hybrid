@@ -14,6 +14,7 @@ LORA_R      ?= 8
 LORA_ALPHA  ?= 16
 NOISE_LEVEL ?= clean
 MODEL_PATH  ?=
+NGRAM_ORDER ?= 4
 
 # ════════════════════════════════════════════════════════════
 # ЦВЕТА

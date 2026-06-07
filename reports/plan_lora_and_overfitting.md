@@ -293,5 +293,22 @@ def hybrid_normalize(text):
 10. ✅ Noisy: `--noise-level` (clean/noisy/all), `make train-noisy`  
 11. ✅ LoRA rank: `--lora-r N`, `make train-local LORA_R=16`
 12. 📝 Запустить `make train-noisy MODEL_PATH=models/ruT5-itn EPOCHS=10`
-13. 📝 n-gram char LM для confidence (вместо хардкода признаков)
+13. ❌ n-gram char LM для confidence — НЕ РАБОТАЕТ (длина mismatch: train 11.7 символов vs inference ASR)
 14. 📝 n-gram char correction model (лёгкая альтернатива ruT5)
+
+### Эксперимент: Char n-gram LM для confidence
+
+| Подход | Ошибок поймано | FP |
+|---|---|---|
+| Хардкодные правила (базовый) | **11/12** | **13** |
+| N-gram на parser output (order=4, p5) | 1/12 | 25 |
+| N-gram на parser output (order=4, p20) | 1/12 | 99 |
+| N-gram на input text (order=4, p20) | 1/12 | 98 |
+| N-gram на всех текстах synthetic.f (p20) | 1/12 | 98 |
+
+**Вывод:** n-gram не работает для confidence из-за:
+- Длина ground_truth в train: 3-69 (средняя 11.7)
+- Длина calibration.f: 60-250+ символов
+- Распределение символов разное (короткие числа vs длинные ASR-транскрипты)
+- Хардкодные правила детектят конкретные паттерны (тыщ, двеси) — n-gram их "размазывает"
+- `src/ngram_lm.py` и `scripts/train_ngram_lm.py` оставлены как инструмент анализа данных

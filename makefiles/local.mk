@@ -74,6 +74,10 @@ fetch-data-local:
 	done
 	@rmdir data/*/ 2>/dev/null; true
 
+train-ngram-lm:
+	@printf "$(BLUE)${BOLD}[NGRAM]$(NC)    Обучение char n-gram LM (order=$(NGRAM_ORDER))...\n"
+	$(VENV_PY) scripts/train_ngram_lm.py --order $(NGRAM_ORDER)
+
 fetch-real-local:
 	@printf "$(BLUE)${BOLD}[FETCH]$(NC)     Сбор реальных данных из интернета...\n"
 	$(VENV_PY) scripts/fetch_real_data.py
