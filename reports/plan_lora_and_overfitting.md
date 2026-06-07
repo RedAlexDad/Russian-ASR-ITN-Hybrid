@@ -95,19 +95,21 @@ LoRA (r=8):             ██▎                          2.1M параметр
 
 ### Результаты (2026-06-07) — итоговые
 
-| Конфигурация | Accuracy | Number Acc | CER | Время |
-|---|---|---|---|---|
-| 3ep, 2000 samples | 2.00% | 1.80% | 0.704 | ~3 мин |
-| 5ep, 4890 clean | 27.40% | 26.70% | 0.334 | 15.5 мин |
-| 10ep, 4890 clean | 42.33% | 46.52% | 0.237 | 31 мин |
-| **20ep, 4890 clean** | **57.26%** | **60.07%** | **0.152** | **61.6 мин** |
+| Конфигурация | Accuracy | Number Acc | CER | Время | eval_loss |
+|---|---|---|---|---|---|
+| 3ep, 2000 samples (r=8) | 2.00% | 1.80% | 0.704 | ~3 мин | — |
+| 5ep, 4890 clean (r=8) | 27.40% | 26.70% | 0.334 | 15.5 мин | 1.08 |
+| 10ep, 4890 clean (r=8) | 42.33% | 46.52% | 0.237 | 31 мин | 0.83 |
+| **10ep, 4890 clean (r=16)** | **43.56%** | — | — | **31.3 мин** (GPU) | **0.71** |
+| **20ep, 4890 clean (r=8)** | **57.26%** | **60.07%** | **0.152** | **61.6 мин** | **0.48** |
 
 **Ключевые выводы:**
 - Мусорных токенов нет — метки исправлены (labels=-100 для pad)
 - Потеря регистра (заглавная буква) исправлена к 20 эпохе — 0 ошибок из 489
 - eval_loss: 1.33 → 0.48 (плато с 16 эпохи)
 - Модель не переобучается: eval_loss монотонно падает все 20 эпох
-- Основной потенциал: noisy-данные (+240%), увеличение LoRA rank
+- **r=16 vs r=8 при 10ep**: accuracy 43.56% vs 42.33% (+1.2%), eval_loss 0.71 vs 0.83 — прирост есть, но небольшой
+- **r=16 (1.8M)** vs **r=8 (0.9M)** — удвоение параметров не даёт пропорционального прироста на clean-данных
 
 ## Чек-лист реализации LoRA
 
@@ -152,6 +154,7 @@ LoRA (r=8):             ██▎                          2.1M параметр
 
 - [x] `make train-local EPOCHS=5` — accuracy 27.4% (> 0% ✓)
 - [x] `make train-local EPOCHS=10` — accuracy 42.3%
+- [x] `make train-local BATCH_SIZE=16 EPOCHS=10 LORA_R=16` — r=16: 43.56%
 - [x] `make train-local EPOCHS=20` — accuracy 57.3%
 - [x] Проверить MLflow: eval_loss по эпохам — логируется per-epoch ✓
 - [x] Проверить inference: генерация без мусорных токенов — чисто ✓
@@ -281,12 +284,14 @@ def hybrid_normalize(text):
 1. ✅ LoRA интегрирован — 0.9M параметров вместо 65M
 2. ✅ Добавить early stopping (patience=5)
 3. ✅ Добавить save best model (load_best_model_at_end)
-4. ✅ Протестировано: 3ep→2%, 5ep→27%, 10ep→42%, 20ep→57%
-5. ✅ Полное обучение на 4890 clean: 20 эпох, 57.3% accuracy
+4. ✅ Протестировано: 3ep→2%, 5ep→27%, 10ep→42%, 20ep→57%, r=16→43.5%
+5. ✅ Полное обучение на 4890 clean: 20 эпох, 57.3% accuracy (r=8)
 6. ✅ Реализовать гибрид: парсер + ruT5 fallback
 7. ✅ Подключить hybrid_normalize в main.py — флаг `--hybrid`
 8. ✅ `make evaluate` — гибрид 94.4% vs парсер 97.6%
 9. ✅ Resume: `--model-path` загружает LoRA адаптер, дообучает дальше
 10. ✅ Noisy: `--noise-level` (clean/noisy/all), `make train-noisy`  
 11. ✅ LoRA rank: `--lora-r N`, `make train-local LORA_R=16`
-12. 📝 Запустить `make train-noisy MODEL_PATH=<run> LORA_R=16 EPOCHS=10`
+12. 📝 Запустить `make train-noisy MODEL_PATH=models/ruT5-itn EPOCHS=10`
+13. 📝 n-gram char LM для confidence (вместо хардкода признаков)
+14. 📝 n-gram char correction model (лёгкая альтернатива ruT5)
