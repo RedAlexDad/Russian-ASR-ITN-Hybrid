@@ -83,11 +83,7 @@ def _parser_confidence(text, pred):
     if any(w in ("тыщ", "тыща") for w in tokens):
         score -= 0.4
 
-    # 2. "дваста" — ASR-искажение "двести"
-    if "дваста" in tokens:
-        score -= 0.3
-
-    # 3. "двеси" + compound-числа (200 350000 вместо 235000)
+    # 2. "двеси" + compound-числа (200 350000 вместо 235000)
     if "двеси" in tokens:
         nums = [int(x) for x in re.findall(r"\d+", pred)]
         for i in range(len(nums) - 1):
@@ -95,7 +91,7 @@ def _parser_confidence(text, pred):
                 score -= 0.3
                 break
 
-    # 4. Порядковые в выводе — парсер их не конвертировал
+    # 3. Порядковые в выводе — парсер их не конвертировал
     _ord_suffixes = ("ый", "ий", "ой", "ая", "ое", "ые")
     _ord_roots = ("перв", "втор", "трет", "четверт", "пят", "шест",
                   "седьм", "восьм", "девят", "десят",
@@ -128,15 +124,11 @@ def _parser_confidence(text, pred):
                     score -= 0.3
                     break
 
-    # 5. "тысячам"/"тысячами" в выводе — парсер оставил форму мн.ч.
+    # 4. "тысячам"/"тысячами" в выводе — парсер оставил форму мн.ч.
     if any(w in ("тысячам", "тысячами") for w in pred_tokens):
         score -= 0.3
 
-    # 6. "миллион" во входе — возможна склейка
-    if any("миллион" in w for w in tokens):
-        score -= 0.3
-
-    # 7. Слово с префиксом числа + "тысяч" — compound (дветысячи→2000+500)
+    # 5. Слово с префиксом числа + "тысяч" — compound (дветысячи→2000+500)
     _number_prefixes = {"две", "три", "четыре", "пять", "шест",
                         "сем", "восем", "девят", "десят"}
     for w in tokens:
@@ -146,7 +138,7 @@ def _parser_confidence(text, pred):
                     score -= 0.3
                     break
 
-    # 8. Сдвоенные "два два" — парсер склеивает неверно
+    # 6. Сдвоенные "два два" — парсер склеивает неверно
     for i in range(len(tokens) - 1):
         if tokens[i] == "два" and tokens[i + 1] == "два":
             score -= 0.3
@@ -168,7 +160,9 @@ def hybrid_normalize(text):
     confidence = _parser_confidence(text, pred_rule)
 
     # Шаг 2: если уверенность низкая — пробуем ruT5
-    if confidence < 0.75:
+    # T5 отключён по умолчанию (модель требует дообучения).
+    # Включить: HYBRID_USE_T5=1
+    if confidence < 0.75 and os.environ.get("HYBRID_USE_T5") == "1":
         if _load_model():
             pred_t5 = _t5_generate(text)
             if pred_t5 and pred_t5 != text:

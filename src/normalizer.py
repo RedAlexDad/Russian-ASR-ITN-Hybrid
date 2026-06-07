@@ -22,6 +22,30 @@ from src.lexicon import is_ordinal_word, lookup_word, ordinal_value
 from src.parser import parse_number_group
 
 
+def _is_vague_tyt_context(tokens, i):
+    """Проверяет, что 'тыщ' по индексу i в разговорном контексте (не число).
+
+    "с чем то тыщ", "выше тыщ", "с половиной тыщ" — ASR-транскрипт, не число.
+    """
+    if i < 1:
+        return False
+    prev = tokens[i - 1]
+    if prev in ("выше", "ниже", "около"):
+        return True
+    if prev == "половиной" or (prev == "с" and i >= 2 and tokens[i - 2] == "половиной"):
+        return True
+    if i >= 3 and tokens[i - 3] == "с" and tokens[i - 2] == "чем" and tokens[i - 1] == "то":
+        return True
+    if i >= 2 and tokens[i - 2] == "где" and tokens[i - 1] == "то":
+        return True
+    return False
+
+
+_FUSED_COMPOUNDS = {
+    "дветысячи": [(2, 0, False, False), (1000, 4, True, False)],
+}
+
+
 def normalize_text(text):
     """Преобразует словесную запись чисел в цифровую.
 
@@ -37,6 +61,13 @@ def normalize_text(text):
 
     while i < len(tokens):
         token = tokens[i]
+
+        # "тыщ" в разговорном контексте — не число, оставляем как есть
+        if token in ("тыщ", "тыща") and _is_vague_tyt_context(tokens, i):
+            result_tokens.append(token)
+            i += 1
+            continue
+
         lookup = lookup_word(token)
         is_ord = is_ordinal_word(token)
 
@@ -63,8 +94,11 @@ def normalize_text(text):
                     assert val_str is not None
                     group_data.append((int(val_str), 0, False, True))
                 elif lk is not None:
-                    val, mag, is_mult = lk
-                    group_data.append((val, mag, is_mult, False))
+                    if t in _FUSED_COMPOUNDS:
+                        group_data.extend(_FUSED_COMPOUNDS[t])
+                    else:
+                        val, mag, is_mult = lk
+                        group_data.append((val, mag, is_mult, False))
 
             # Парсим и заменяем
             parsed = parse_number_group(group_data)

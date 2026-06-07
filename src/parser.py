@@ -52,15 +52,14 @@ def parse_number_group(tokens_data):
     last_mult_mag = -1  # mag последнего умножителя
     result = []
 
-    for val, mag, is_mult, _ in tokens_data:
+    for j, (val, mag, is_mult, _) in enumerate(tokens_data):
         if is_mult:
-            # Умножитель: умножаем накопленное current * val
-            # Если current == 0, значит умножитель без предшествующего числа
-            if last_mult_mag == mag and current == 0:
-                # Два умножителя одного уровня подряд — новое число
+            if last_mult_mag == mag:
+                # Два умножителя одного ранга — разные числа
+                # "семьдесят миллионов два миллиона" → 70M 2M
                 result.append(str(int(compound)))
-                compound = 0
-                compound = val
+                compound = current * val if current > 0 else val
+                current = 0
             else:
                 multiplied = current * val if current > 0 else val
                 compound += multiplied
@@ -73,9 +72,18 @@ def parse_number_group(tokens_data):
                 current = val
                 last_mag = mag
             elif mag < last_mag:
-                # Строго убывающая magnitude -> сумма
-                current += val
-                last_mag = mag
+                # Два токена подряд с одинаковым mag=0 → перечисление
+                # Ловит "два два", "два три" как отдельные числа
+                if mag <= 1 and j + 1 < len(tokens_data) and tokens_data[j + 1][1] == mag:
+                    result.append(str(int(compound + current)))
+                    compound = 0
+                    current = val
+                    last_mag = mag
+                    last_mult_mag = -1
+                else:
+                    # Строго убывающая magnitude -> сумма
+                    current += val
+                    last_mag = mag
             else:
                 # Не убывает -> перечисление: завершаем текущее число
                 result.append(str(int(compound + current)))

@@ -17,8 +17,10 @@ def test_sum_with_thousand_multiplier():
 
 
 def test_two_multiplier_blocks():
+    # Два блока одного ранга с числом между — разные числа
+    # "семьдесят миллионов два миллиона" → 70000000 2000000
     assert parse_number_group([(70, 2, False, False), (1000000, 5, True, False),
-                                (2, 0, False, False), (1000000, 5, True, False)]) == ['72000000']
+                                (2, 0, False, False), (1000000, 5, True, False)]) == ['70000000', '2000000']
 
 
 def test_standalone_thousand():
