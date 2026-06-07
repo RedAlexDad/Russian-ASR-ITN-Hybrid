@@ -622,6 +622,53 @@ def test_classify_asr_error():
 
 ---
 
+## Результаты реализации (07.06.2026)
+
+### Код
+
+| Файл | Статус | Комментарий |
+|------|--------|-------------|
+| `src/token_classifier.py` | ✅ NEW | 200 строк: TokenClass, root patterns, classify(), classify_tokens(), vague, fused |
+| `src/sequence_parser.py` | ✅ NEW | 130 строк: parse_sequence() state machine с lookahead heuristic |
+| `src/lexicon.py` | ✅ ADAPT | −184 строк: удалён dead code (_cardinal_from_root, expand_dictionaries, _fuzzy_ordinal_match, _levenshtein) |
+| `src/normalizer.py` | ✅ ADAPT | +normalize_text_sequence(), ASR regex для "двеси" восстановлен |
+| `src/cli.py` | ✅ ADAPT | `--parser-type {current,sequence}` на всех subcommands |
+| `makefiles/local.mk` | ✅ ADAPT | evaluate-sequence-local, errors-sequence-local |
+| `makefiles/help.mk` | ✅ ADAPT | Новые цели в help |
+| `tests/test_sequence_parser.py` | ✅ NEW | 25 тестов (10 classifier + 15 parser) |
+
+### Точность
+
+| Датасет | Current parser | Sequence parser | Δ |
+|---------|---------------|-----------------|---|
+| calibration.f | 99.80% (499/500) | 99.80% (499/500) | = |
+| synthetic clean | 95.87% (4688/4890) | 95.87% (4688/4890) | = |
+| synthetic noisy | 2.93% (344/11728) | 4.26% (500/11728) | **+1.33%** |
+| real.f | 55.23% (95/172) | 55.23% (95/172) | = |
+
+### Детальный diff (synthetic.f): 860 различающихся строк
+
+- **290 улучшений** — fused compounds (девятьтысяч→9000, семьтысяч→7000, четыретысячи→4700)
+- **1 регрессия** — "двесте" не было в словаре классификатора (исправлено: добавлено `"двесте": (200, 3)`)
+- Остальные 569 — нейтральные (оба парсера не совпали с GT, но по-разному)
+
+### Единственная ошибка на calibration.f
+
+```
+TASK: дваста рублей скидка на товар если сделать заказ до трёх часов дня
+GT:   дваста рублей скидка на товар если сделать заказ до 3 часов дня
+PRED: 200 рублей скидка на товар если сделать заказ до 3 часов дня
+```
+
+GT содержит ASR-ошибку "дваста" (не нормализовано). Парсер математически прав — это ITN, а не копирование ASR.
+
+### Коммит
+
+`cae5e4b` — feat: добавить sequence-based token classifier и парсер
+(+1375, −184 строки, 9 файлов)
+
+---
+
 ## Migration strategy
 
 1. Новый код живёт параллельно: `normalize_text_sequence()` → `parse_sequence()` → `classify()`

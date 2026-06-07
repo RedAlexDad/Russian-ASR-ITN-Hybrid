@@ -70,8 +70,14 @@ class CharNGram:
             "vocab": self._vocab,
             "vocab_size": self._vocab_size,
         }
-        for attr in ("threshold_min", "threshold_p5", "threshold_p10",
-                     "threshold_mean", "threshold_std", "n_train"):
+        for attr in (
+            "threshold_min",
+            "threshold_p5",
+            "threshold_p10",
+            "threshold_mean",
+            "threshold_std",
+            "n_train",
+        ):
             val = getattr(self, attr, None)
             if val is not None:
                 data[attr] = val
@@ -88,8 +94,14 @@ class CharNGram:
         lm._vocab = data["vocab"]
         lm._vocab_size = data["vocab_size"]
         lm._trained = True
-        for attr in ("threshold_min", "threshold_p5", "threshold_p10",
-                     "threshold_mean", "threshold_std", "n_train"):
+        for attr in (
+            "threshold_min",
+            "threshold_p5",
+            "threshold_p10",
+            "threshold_mean",
+            "threshold_std",
+            "n_train",
+        ):
             if attr in data:
                 setattr(lm, attr, data[attr])
         return lm

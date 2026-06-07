@@ -7,13 +7,13 @@
 Новый код должен использовать token_classifier.classify() напрямую.
 """
 
-from src.token_classifier import TokenClass, classify as _classify
-
 # Re-export for backward compatibility
 from src.dicts.hundreds import HUNDREDS
 from src.dicts.ordinals import ORDINAL_SET, ORDINALS
 from src.dicts.thousands import BILLIONS, MILLIONS, MULTIPLIERS, THOUSANDS
 from src.dicts.units import TEENS, TENS, UNITS
+from src.token_classifier import TokenClass
+from src.token_classifier import classify as _classify
 
 # Полный словарь числительных (быстрый путь для старого кода)
 NUMERAL_DICT = {}
@@ -51,9 +51,9 @@ def lookup_word(word):
 
     # Root-based классификация
     result = _classify(word)
-    if result and not any(t.subtype == 'vague' for t in result):
+    if result and not any(t.subtype == "vague" for t in result):
         tc = result[0]
-        return (tc.value, tc.mag, tc.subtype == 'multiplier')
+        return (tc.value, tc.mag, tc.subtype == "multiplier")
     return None
 
 
@@ -66,7 +66,7 @@ def is_ordinal_word(word):
         return False
     result = _classify(word)
     if result:
-        return result[0].subtype == 'ordinal'
+        return result[0].subtype == "ordinal"
     return False
 
 
@@ -78,6 +78,6 @@ def ordinal_value(word):
     if w in NUMERAL_DICT or w in ASR_ERRORS:
         return None
     result = _classify(word)
-    if result and result[0].subtype == 'ordinal':
+    if result and result[0].subtype == "ordinal":
         return str(result[0].value)
     return None

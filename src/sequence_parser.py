@@ -34,16 +34,16 @@ def parse_sequence(classes):
     if not classes:
         return []
 
-    compound = 0      # накоплено после умножителей
-    current = 0       # текущее накопленное число (< 1000)
-    last_mag = -1     # mag предыдущего cardinal/ordinal токена
+    compound = 0  # накоплено после умножителей
+    current = 0  # текущее накопленное число (< 1000)
+    last_mag = -1  # mag предыдущего cardinal/ordinal токена
     last_mult_mag = -1  # mag последнего умножителя
-    has_zero = False   # был ли токен со значением 0
+    has_zero = False  # был ли токен со значением 0
     result = []
 
     for idx, tc in enumerate(classes):
         # ── Vague: пропускаем ──
-        if tc.subtype == 'vague':
+        if tc.subtype == "vague":
             continue
 
         # ── Ноль: запоминаем ──
@@ -51,7 +51,7 @@ def parse_sequence(classes):
             has_zero = True
 
         # ── Multiplier (тысяча, миллион, миллиард) ──
-        if tc.subtype == 'multiplier':
+        if tc.subtype == "multiplier":
             if last_mult_mag == tc.mag:
                 # Два умножителя одного ранга → enum
                 # "семьдесят миллионов два миллиона" → 7e7 2e6
@@ -88,8 +88,10 @@ def parse_sequence(classes):
                 # "двести восемьдесят четвёртый" → 284 (mag 1→0[ordinal] → sum)
                 if idx < len(classes) - 1:
                     next_tc = classes[idx + 1]
-                    if (next_tc.subtype not in ('multiplier', 'vague', 'ordinal')
-                            and next_tc.mag <= 1):
+                    if (
+                        next_tc.subtype not in ("multiplier", "vague", "ordinal")
+                        and next_tc.mag <= 1
+                    ):
                         _flush(compound, current, result, force=has_zero)
                         compound = 0
                         current = tc.value
@@ -111,6 +113,6 @@ def parse_sequence(classes):
     # ── Финализация ──
     _flush(compound, current, result, force=has_zero)
     if not result and has_zero:
-        return ['0']
+        return ["0"]
 
     return result

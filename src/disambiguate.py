@@ -14,28 +14,28 @@ import re
 #   Числительное: перед существительным в род.п. ("сто рублей")
 #   Глагол: после "я" ("я сто"), перед "на/в/у" ("сто на")
 _STO_VERB_PATTERNS = [
-    (r'\bя\s+сто\b', False),            # "я сто" → verb
-    (r'\bсто\s+(на|в|у|за|перед)\b', False),  # "сто на" → verb
-    (r'\bсто\s+и\s+', False),            # "сто и" → verb listing
+    (r"\bя\s+сто\b", False),  # "я сто" → verb
+    (r"\bсто\s+(на|в|у|за|перед)\b", False),  # "сто на" → verb
+    (r"\bсто\s+и\s+", False),  # "сто и" → verb listing
 ]
 _STO_NUMERAL_PATTERNS = [
-    (r'\bсто\s+(рубл|доллар|евро|тысяч|миллион|процент|раз|человек|штук)', True),
-    (r'\b(до|около|более|менее|свыше|почти)\s+сто\b', True),
+    (r"\bсто\s+(рубл|доллар|евро|тысяч|миллион|процент|раз|человек|штук)", True),
+    (r"\b(до|около|более|менее|свыше|почти)\s+сто\b", True),
 ]
 
 # "три" — 3 vs "тереть" (глагол)
 #   Числительное: с существительным
 #   Глагол: в контексте "три/тереть" с возвратными частицами
 _TRI_VERB_PATTERNS = [
-    (r'\bтри\s+ся\b', False),
-    (r'\bтри\s+те\b', False),
+    (r"\bтри\s+ся\b", False),
+    (r"\bтри\s+те\b", False),
 ]
 
 # "сорок" — 40 vs "сорока" (сорока)
 #   Числительное: с единицами измерения
 #   Птица: редкий контекст в e-commerce
 _SOROK_NOUN_PATTERNS = [
-    (r'\bсорок\s+(летит|птиц|синиц|вороб)', False),
+    (r"\bсорок\s+(летит|птиц|синиц|вороб)", False),
 ]
 
 
@@ -89,26 +89,36 @@ def is_likely_numeric(text, word, pos):
 
 def _pymorphy_check(text, word, pos):
     """Использует pymorphy2 для проверки части речи."""
-    import inspect
     # Monkey-patch для Python 3.12
     import collections
-    if not hasattr(inspect, 'getargspec'):
-        ArgSpec = collections.namedtuple('ArgSpec', ['args', 'varargs', 'keywords', 'defaults'])
+    import inspect
+
+    if not hasattr(inspect, "getargspec"):
+        ArgSpec = collections.namedtuple(
+            "ArgSpec", ["args", "varargs", "keywords", "defaults"]
+        )
+
         def getargspec(func):
             spec = inspect.getfullargspec(func)
-            return ArgSpec(args=spec.args, varargs=spec.varargs,
-                           keywords=spec.varkw, defaults=spec.defaults)
+            return ArgSpec(
+                args=spec.args,
+                varargs=spec.varargs,
+                keywords=spec.varkw,
+                defaults=spec.defaults,
+            )
+
         inspect.getargspec = getargspec
 
     import pymorphy2
+
     try:
         morph = pymorphy2.MorphAnalyzer()
     except Exception:
         return True
 
     parses = morph.parse(word.lower())
-    has_numr = any('NUMR' in str(p.tag) for p in parses)
-    has_non_numr = any('NUMR' not in str(p.tag) and p.score > 0.1 for p in parses)
+    has_numr = any("NUMR" in str(p.tag) for p in parses)
+    has_non_numr = any("NUMR" not in str(p.tag) and p.score > 0.1 for p in parses)
 
     if has_numr and not has_non_numr:
         return True  # только числительное

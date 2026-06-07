@@ -16,14 +16,14 @@ from src.dicts.ordinals import ORDINAL_SET, ORDINALS
 from src.dicts.thousands import BILLIONS, MILLIONS, THOUSANDS
 from src.dicts.units import TEENS, TENS, UNITS
 
-
 # ── Token class ──
+
 
 @dataclass
 class TokenClass:
     value: int
     mag: int
-    subtype: str   # 'cardinal', 'ordinal', 'multiplier', 'fused', 'vague'
+    subtype: str  # 'cardinal', 'ordinal', 'multiplier', 'fused', 'vague'
     raw: str
     confidence: float = 1.0
 
@@ -33,6 +33,14 @@ class TokenClass:
 _NUMERAL_DICT = {}
 for d in (UNITS, TEENS, TENS, HUNDREDS, THOUSANDS, MILLIONS, BILLIONS):
     _NUMERAL_DICT.update(d)
+
+# Дополнительные ASR-формы, отсутствующие в стандартных словарях
+_NUMERAL_DICT.update(
+    {
+        "двесте": (200, 3),
+        "двестипятьсот": (2500, 0),
+    }
+)
 
 # Known ASR errors — map to canonical form
 from src.dicts.asr_errors import ASR_ERRORS
@@ -146,35 +154,118 @@ _NUMERIC_ROOTS = [
 
 # Valid inflection suffixes for Russian numerals
 _INFLECTION_SUFFIXES = {
-    "", "а", "у", "е", "и", "ой", "ых", "ым", "ыми",
-    "ом", "ам", "ами", "ах", "ей", "ю", "я", "ь",
-    "ый", "ий", "ая", "ое", "ые",
-    "ого", "его", "ому", "ему", "ую",
-    "ья", "ье", "ьи",
+    "",
+    "а",
+    "у",
+    "е",
+    "и",
+    "ой",
+    "ых",
+    "ым",
+    "ыми",
+    "ом",
+    "ам",
+    "ами",
+    "ах",
+    "ей",
+    "ю",
+    "я",
+    "ь",
+    "ый",
+    "ий",
+    "ая",
+    "ое",
+    "ые",
+    "ого",
+    "его",
+    "ому",
+    "ему",
+    "ую",
+    "ья",
+    "ье",
+    "ьи",
 }
 
 _ORDINAL_SUFFIXES = {
-    "ый", "ий", "ой", "ая", "ья", "ое", "ье", "ые", "ьи",
-    "ого", "его", "ому", "ему", "ым", "ими", "ыми",
-    "ом", "ем", "ых", "ых", "их",
-    "ую", "ю", "ей",
+    "ый",
+    "ий",
+    "ой",
+    "ая",
+    "ья",
+    "ое",
+    "ье",
+    "ые",
+    "ьи",
+    "ого",
+    "его",
+    "ому",
+    "ему",
+    "ым",
+    "ими",
+    "ыми",
+    "ом",
+    "ем",
+    "ых",
+    "ых",
+    "их",
+    "ую",
+    "ю",
+    "ей",
 }
 
 # Words that look like ordinals but aren't
 _NON_ORDINALS = {
-    "какой", "такой", "другой", "любой", "каждой",
-    "самой", "самый", "самое", "новая", "новый",
-    "простой", "главный", "большой", "хороший", "плохой",
-    "маленький", "маленькая", "высокий", "низкий", "нужный",
-    "последний", "ближайший", "разный", "целый", "полный",
-    "важный", "точный", "активный", "интересный",
-    "обычный", "подобный", "отдельный", "значительный",
-    "собственный", "человеческий", "прежний",
-    "дополнительный", "практический", "технический",
-    "экономический", "политический", "исторический",
-    "физический", "юридический", "медицинский",
-    "социальный", "культурный", "научный",
-    "международный", "современный", "второй",
+    "какой",
+    "такой",
+    "другой",
+    "любой",
+    "каждой",
+    "самой",
+    "самый",
+    "самое",
+    "новая",
+    "новый",
+    "простой",
+    "главный",
+    "большой",
+    "хороший",
+    "плохой",
+    "маленький",
+    "маленькая",
+    "высокий",
+    "низкий",
+    "нужный",
+    "последний",
+    "ближайший",
+    "разный",
+    "целый",
+    "полный",
+    "важный",
+    "точный",
+    "активный",
+    "интересный",
+    "обычный",
+    "подобный",
+    "отдельный",
+    "значительный",
+    "собственный",
+    "человеческий",
+    "прежний",
+    "дополнительный",
+    "практический",
+    "технический",
+    "экономический",
+    "политический",
+    "исторический",
+    "физический",
+    "юридический",
+    "медицинский",
+    "социальный",
+    "культурный",
+    "научный",
+    "международный",
+    "современный",
+    "второй",
 }
 
 
@@ -204,6 +295,7 @@ def _is_vague_context(prev_tokens):
 
 # ── Root matching ──
 
+
 def _match_root(word):
     """Пытается найти числовой корень в слове.
 
@@ -221,13 +313,14 @@ def _match_root(word):
         # Must match at start of the word
         if idx != 0:
             continue
-        suffix = w[len(root):]
+        suffix = w[len(root) :]
         if suffix in _INFLECTION_SUFFIXES:
             return val, mag, is_mult, suffix
     return None
 
 
 # ── Ordinal detection ──
+
 
 def _is_ordinal_suffix(suffix):
     """Проверяет, является ли суффикс порядковым окончанием."""
@@ -248,11 +341,12 @@ def _classify_ordinal(word, val, mag, suffix):
     if w in _NUMERAL_DICT:
         return None  # already cardinal, don't reclassify as ordinal
     if _is_ordinal_suffix(suffix):
-        return TokenClass(val, mag, 'ordinal', word)
+        return TokenClass(val, mag, "ordinal", word)
     return None
 
 
 # ── Fused compound detection ──
+
 
 def _find_fused_compound(word):
     """Пытается разбить слитное слово на два числовых токена.
@@ -275,13 +369,14 @@ def _find_fused_compound(word):
             # Valid fused compound: unit/digit + multiplier
             if mult2 and m1 <= 3 and m2 >= 4:
                 return [
-                    TokenClass(v1, m1, 'cardinal', word),
-                    TokenClass(v2, m2, 'multiplier', word),
+                    TokenClass(v1, m1, "cardinal", word),
+                    TokenClass(v2, m2, "multiplier", word),
                 ]
     return None
 
 
 # ── Main classify API ──
+
 
 def classify(word, prev_tokens=None):
     """Классифицирует слово как числительное.
@@ -308,29 +403,29 @@ def classify(word, prev_tokens=None):
     # 1. Vague "тыщ"/"тыща" context (check BEFORE dict match)
     if w in ("тыщ", "тыща") and prev_tokens is not None:
         if _is_vague_context(prev_tokens):
-            return [TokenClass(1000, 4, 'vague', word)]
+            return [TokenClass(1000, 4, "vague", word)]
 
     # 2. Exact dict match
     if w in _NUMERAL_DICT:
         val, mag = _NUMERAL_DICT[w]
-        subtype = 'multiplier' if w in _MULTIPLIER_SET else 'cardinal'
+        subtype = "multiplier" if w in _MULTIPLIER_SET else "cardinal"
         return [TokenClass(val, mag, subtype, word)]
 
     # 3. Ordinal exact match
     if w in ORDINAL_SET:
         val = int(ORDINALS[w])
-        return [TokenClass(val, 0, 'ordinal', word)]
+        return [TokenClass(val, 0, "ordinal", word)]
 
     # 4. ASR error correction
     if w in ASR_ERRORS:
         canonical = ASR_ERRORS[w]
         if canonical in _NUMERAL_DICT:
             val, mag = _NUMERAL_DICT[canonical]
-            subtype = 'multiplier' if canonical in _MULTIPLIER_SET else 'cardinal'
+            subtype = "multiplier" if canonical in _MULTIPLIER_SET else "cardinal"
             return [TokenClass(val, mag, subtype, word)]
         if canonical in ORDINAL_SET:
             val = int(ORDINALS[canonical])
-            return [TokenClass(val, 0, 'ordinal', word)]
+            return [TokenClass(val, 0, "ordinal", word)]
 
     # 5. Root-based matching
     match = _match_root(w)
@@ -343,7 +438,7 @@ def classify(word, prev_tokens=None):
         # Custom "сбор" forms (collective, like "пятеро")
         if suffix in ("о", "е"):
             pass  # Same as cardinal
-        subtype = 'multiplier' if is_mult else 'cardinal'
+        subtype = "multiplier" if is_mult else "cardinal"
         return [TokenClass(val, mag, subtype, word)]
 
     # 6. Fused compound

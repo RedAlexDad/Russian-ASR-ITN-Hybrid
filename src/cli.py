@@ -24,7 +24,7 @@ from src.normalizer import normalize_text, normalize_text_sequence
 
 def _get_normalize(args):
     """Выбрать функцию нормализации в зависимости от флагов."""
-    if args.parser_type == 'sequence':
+    if args.parser_type == "sequence":
         return normalize_text_sequence
     return hybrid_normalize if args.hybrid else normalize_text
 
@@ -104,21 +104,42 @@ def build_parser():
     run_p = sub.add_parser("run", help="Нормализовать файл и сохранить результат")
     run_p.add_argument("input", help="Путь к .feather файлу")
     run_p.add_argument("-o", "--output", help="Выходной .feather файл")
-    run_p.add_argument("--hybrid", action='store_true', help="Использовать гибрид (парсер + ruT5)")
-    run_p.add_argument("--parser-type", choices=['current', 'sequence'], default='current', help="Тип парсера")
+    run_p.add_argument(
+        "--hybrid", action="store_true", help="Использовать гибрид (парсер + ruT5)"
+    )
+    run_p.add_argument(
+        "--parser-type",
+        choices=["current", "sequence"],
+        default="current",
+        help="Тип парсера",
+    )
     run_p.set_defaults(func=cmd_run)
 
     eval_p = sub.add_parser("evaluate", help="Оценить accuracy на calibration")
     eval_p.add_argument("input", help="Путь к calibration.f")
-    eval_p.add_argument("--hybrid", action='store_true', help="Использовать гибрид (парсер + ruT5)")
-    eval_p.add_argument("--parser-type", choices=['current', 'sequence'], default='current', help="Тип парсера")
+    eval_p.add_argument(
+        "--hybrid", action="store_true", help="Использовать гибрид (парсер + ruT5)"
+    )
+    eval_p.add_argument(
+        "--parser-type",
+        choices=["current", "sequence"],
+        default="current",
+        help="Тип парсера",
+    )
     eval_p.set_defaults(func=cmd_evaluate)
 
     err_p = sub.add_parser("errors", help="Показать ошибки на calibration")
     err_p.add_argument("input", help="Путь к calibration.f")
     err_p.add_argument("-n", type=int, default=15, help="Количество ошибок")
-    err_p.add_argument("--hybrid", action='store_true', help="Использовать гибрид (парсер + ruT5)")
-    err_p.add_argument("--parser-type", choices=['current', 'sequence'], default='current', help="Тип парсера")
+    err_p.add_argument(
+        "--hybrid", action="store_true", help="Использовать гибрид (парсер + ruT5)"
+    )
+    err_p.add_argument(
+        "--parser-type",
+        choices=["current", "sequence"],
+        default="current",
+        help="Тип парсера",
+    )
     err_p.set_defaults(func=cmd_errors)
 
     return p

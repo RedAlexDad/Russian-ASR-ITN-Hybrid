@@ -22,12 +22,13 @@ import re
 
 from src.lexicon import is_ordinal_word, lookup_word, ordinal_value
 from src.parser import parse_number_group
-from src.token_classifier import classify
 from src.sequence_parser import parse_sequence
+from src.token_classifier import classify
 
 try:
     from src.disambiguate import is_likely_numeric
 except ImportError:
+
     def is_likely_numeric(*_):
         return True
 
@@ -55,20 +56,24 @@ _TEN_TO_UNIT = {
 _ASR_SUBSTITUTIONS = [
     # "двеси" + hundred + (ten) + тысяч: сдвиг разрядов
     # "двеси триста пятьдесят тысяч" → "двести тридцать пять тысяч" → 235000
-    (re.compile(r'\bдвеси\s+(триста|четыреста|пятьсот|шестьсот|семьсот|восемьсот|девятьсот)(?:\s+(пятьдесят|шестьдесят|семьдесят|восемьдесят))?\s+тысяч[аи]?\b'),
-     lambda m: " ".join(
-         ["двести", _HUNDRED_TO_TEN.get(m.group(1), m.group(1))]
-         + ([_TEN_TO_UNIT.get(m.group(2))] if m.group(2) in _TEN_TO_UNIT else [])
-         + ["тысяч"]
-     )),
+    (
+        re.compile(
+            r"\bдвеси\s+(триста|четыреста|пятьсот|шестьсот|семьсот|восемьсот|девятьсот)(?:\s+(пятьдесят|шестьдесят|семьдесят|восемьдесят))?\s+тысяч[аи]?\b"
+        ),
+        lambda m: " ".join(
+            ["двести", _HUNDRED_TO_TEN.get(m.group(1), m.group(1))]
+            + ([_TEN_TO_UNIT.get(m.group(2))] if m.group(2) in _TEN_TO_UNIT else [])
+            + ["тысяч"]
+        ),
+    ),
     # Пропущенный мягкий знак в десятках
-    (re.compile(r'\bпятдесят\b'), 'пятьдесят'),
-    (re.compile(r'\bшестдесят\b'), 'шестьдесят'),
-    (re.compile(r'\bсемдесят\b'), 'семьдесят'),
-    (re.compile(r'\bвосемдесят\b'), 'восемьдесят'),
+    (re.compile(r"\bпятдесят\b"), "пятьдесят"),
+    (re.compile(r"\bшестдесят\b"), "шестьдесят"),
+    (re.compile(r"\bсемдесят\b"), "семьдесят"),
+    (re.compile(r"\bвосемдесят\b"), "восемьдесят"),
     # Падежные ошибки в сотнях
-    (re.compile(r'\bтристо\b'), 'триста'),
-    (re.compile(r'\bчетыриста\b'), 'четыреста'),
+    (re.compile(r"\bтристо\b"), "триста"),
+    (re.compile(r"\bчетыриста\b"), "четыреста"),
 ]
 
 
@@ -94,7 +99,12 @@ def _is_vague_tyt_context(tokens, i):
         return True
     if prev == "половиной" or (prev == "с" and i >= 2 and tokens[i - 2] == "половиной"):
         return True
-    if i >= 3 and tokens[i - 3] == "с" and tokens[i - 2] == "чем" and tokens[i - 1] == "то":
+    if (
+        i >= 3
+        and tokens[i - 3] == "с"
+        and tokens[i - 2] == "чем"
+        and tokens[i - 1] == "то"
+    ):
         return True
     if i >= 2 and tokens[i - 2] == "где" and tokens[i - 1] == "то":
         return True
@@ -127,12 +137,12 @@ def normalize_text_sequence(text):
         token = tokens[i]
         classes = classify(token, tokens[:i])
 
-        if classes and not all(c.subtype == 'vague' for c in classes):
+        if classes and not all(c.subtype == "vague" for c in classes):
             # Собираем группу числовых токенов
             group = []
             while i < len(tokens):
                 cs = classify(tokens[i], tokens[:i])
-                if cs and not all(c.subtype == 'vague' for c in cs):
+                if cs and not all(c.subtype == "vague" for c in cs):
                     group.extend(cs)
                     i += 1
                 else:

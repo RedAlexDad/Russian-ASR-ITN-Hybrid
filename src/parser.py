@@ -74,7 +74,11 @@ def parse_number_group(tokens_data):
             elif mag < last_mag:
                 # Два токена подряд с одинаковым mag=0 → перечисление
                 # Ловит "два два", "два три" как отдельные числа
-                if mag <= 1 and j + 1 < len(tokens_data) and tokens_data[j + 1][1] == mag:
+                if (
+                    mag <= 1
+                    and j + 1 < len(tokens_data)
+                    and tokens_data[j + 1][1] == mag
+                ):
                     result.append(str(int(compound + current)))
                     compound = 0
                     current = val
