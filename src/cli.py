@@ -19,12 +19,19 @@ import pandas as pd
 
 from src import eda
 from src.hybrid import hybrid_normalize
-from src.normalizer import normalize_text
+from src.normalizer import normalize_text, normalize_text_sequence
+
+
+def _get_normalize(args):
+    """Выбрать функцию нормализации в зависимости от флагов."""
+    if args.parser_type == 'sequence':
+        return normalize_text_sequence
+    return hybrid_normalize if args.hybrid else normalize_text
 
 
 def cmd_run(args):
     """Нормализовать test.f и сохранить answer.f."""
-    normalize = hybrid_normalize if args.hybrid else normalize_text
+    normalize = _get_normalize(args)
     df = pd.read_feather(args.input)
     if "task_text" not in df.columns:
         print("[ERROR] Колонка task_text не найдена")
@@ -40,12 +47,8 @@ def cmd_run(args):
 
 
 def cmd_evaluate(args):
-    """Оценить accuracy на calibration.f.
-
-    Сравнивает результат normalize_text/hybrid_normalize с ground_truth для каждой строки.
-    Выводит Accuracy = доля полностью совпавших строк.
-    """
-    normalize = hybrid_normalize if args.hybrid else normalize_text
+    """Оценить accuracy на calibration.f."""
+    normalize = _get_normalize(args)
     df = pd.read_feather(args.input)
     if "task_text" not in df.columns or "ground_truth" not in df.columns:
         print("[ERROR] Требуются колонки task_text и ground_truth")
@@ -68,7 +71,7 @@ def cmd_evaluate(args):
 
 def cmd_errors(args):
     """Показать первые N ошибок на calibration.f."""
-    normalize = hybrid_normalize if args.hybrid else normalize_text
+    normalize = _get_normalize(args)
     df = pd.read_feather(args.input)
     if "task_text" not in df.columns or "ground_truth" not in df.columns:
         print("[ERROR] Требуются колонки task_text и ground_truth")
@@ -102,17 +105,20 @@ def build_parser():
     run_p.add_argument("input", help="Путь к .feather файлу")
     run_p.add_argument("-o", "--output", help="Выходной .feather файл")
     run_p.add_argument("--hybrid", action='store_true', help="Использовать гибрид (парсер + ruT5)")
+    run_p.add_argument("--parser-type", choices=['current', 'sequence'], default='current', help="Тип парсера")
     run_p.set_defaults(func=cmd_run)
 
     eval_p = sub.add_parser("evaluate", help="Оценить accuracy на calibration")
     eval_p.add_argument("input", help="Путь к calibration.f")
     eval_p.add_argument("--hybrid", action='store_true', help="Использовать гибрид (парсер + ruT5)")
+    eval_p.add_argument("--parser-type", choices=['current', 'sequence'], default='current', help="Тип парсера")
     eval_p.set_defaults(func=cmd_evaluate)
 
     err_p = sub.add_parser("errors", help="Показать ошибки на calibration")
     err_p.add_argument("input", help="Путь к calibration.f")
     err_p.add_argument("-n", type=int, default=15, help="Количество ошибок")
     err_p.add_argument("--hybrid", action='store_true', help="Использовать гибрид (парсер + ruT5)")
+    err_p.add_argument("--parser-type", choices=['current', 'sequence'], default='current', help="Тип парсера")
     err_p.set_defaults(func=cmd_errors)
 
     return p

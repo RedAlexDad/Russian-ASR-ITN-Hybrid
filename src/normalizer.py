@@ -22,6 +22,8 @@ import re
 
 from src.lexicon import is_ordinal_word, lookup_word, ordinal_value
 from src.parser import parse_number_group
+from src.token_classifier import classify
+from src.sequence_parser import parse_sequence
 
 try:
     from src.disambiguate import is_likely_numeric
@@ -52,7 +54,7 @@ _TEN_TO_UNIT = {
 
 _ASR_SUBSTITUTIONS = [
     # "двеси" + hundred + (ten) + тысяч: сдвиг разрядов
-    # "двеси триста пятьдесят тысяч" → "двести тридцать пять тысяч"
+    # "двеси триста пятьдесят тысяч" → "двести тридцать пять тысяч" → 235000
     (re.compile(r'\bдвеси\s+(триста|четыреста|пятьсот|шестьсот|семьсот|восемьсот|девятьсот)(?:\s+(пятьдесят|шестьдесят|семьдесят|восемьдесят))?\s+тысяч[аи]?\b'),
      lambda m: " ".join(
          ["двести", _HUNDRED_TO_TEN.get(m.group(1), m.group(1))]
@@ -102,6 +104,46 @@ def _is_vague_tyt_context(tokens, i):
 _FUSED_COMPOUNDS = {
     "дветысячи": [(2, 0, False, False), (1000, 4, True, False)],
 }
+
+
+# ── Sequence-based normalizer (NEW) ──
+
+
+def normalize_text_sequence(text):
+    """Sequence-based нормализация: token classifier + sequence parser.
+
+    Замена normalize_text() через новый token_classifier + sequence_parser.
+    Параллельный путь: старый код не затрагивается.
+    """
+    if not isinstance(text, str) or not text.strip():
+        return text
+
+    text = _asr_preprocess(text)
+    tokens = text.split()
+    result_tokens = []
+    i = 0
+
+    while i < len(tokens):
+        token = tokens[i]
+        classes = classify(token, tokens[:i])
+
+        if classes and not all(c.subtype == 'vague' for c in classes):
+            # Собираем группу числовых токенов
+            group = []
+            while i < len(tokens):
+                cs = classify(tokens[i], tokens[:i])
+                if cs and not all(c.subtype == 'vague' for c in cs):
+                    group.extend(cs)
+                    i += 1
+                else:
+                    break
+            parsed = parse_sequence(group)
+            result_tokens.extend(parsed)
+        else:
+            result_tokens.append(token)
+            i += 1
+
+    return " ".join(result_tokens)
 
 
 def normalize_text(text):

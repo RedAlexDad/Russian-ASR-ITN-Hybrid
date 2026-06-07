@@ -82,6 +82,14 @@ fetch-real-local:
 	@printf "$(BLUE)${BOLD}[FETCH]$(NC)     Сбор реальных данных из интернета...\n"
 	$(VENV_PY) scripts/fetch_real_data.py
 
+evaluate-sequence-local:
+	@printf "$(YELLOW)${BOLD}[EVAL-SEQ]$(NC)  Sequence parser accuracy на: $(CALIB)\n"
+	$(VENV_PY) main.py evaluate "$(CALIB)" --parser-type sequence
+
+errors-sequence-local:
+	@printf "$(RED)${BOLD}[ERR-SEQ]$(NC)    Первые $(or $(N),15) ошибок (sequence) на: $(CALIB)\n"
+	$(VENV_PY) main.py errors "$(CALIB)" -n $(or $(N),15) --parser-type sequence
+
 evaluate-synthetic-local:
 	@printf "$(YELLOW)${BOLD}[EVAL-SYNTH]$(NC) Оценка accuracy на синтетике...\n"
 	$(VENV_PY) -c "import polars as pl; from src.normalizer import normalize_text; \
