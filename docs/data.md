@@ -5,16 +5,13 @@
 ## 1. `data/calibration.f` — эталон (500 строк)
 
 Поставляется с заданием. Содержит `task_text` и `ground_truth`.
-Используется для оценки accuracy.
-
-```
-Accuracy = 488/500 = 97.6%
-```
 
 | Колонка        | Описание                                      |
 | -------------- | --------------------------------------------- |
 | `task_text`    | ASR-транскрибация (lowercase, без пунктуации) |
 | `ground_truth` | Эталонная нормализация                        |
+
+Accuracy (оба парсера): **99.80%** (499/500).
 
 ## 2. `data/synthetic.f` — синтетический датасет (16 500 строк)
 
@@ -35,12 +32,23 @@ Accuracy = 488/500 = 97.6%
 | `num_type`     | cardinal / ordinal                            |
 | `noise_level`  | clean / noisy                                 |
 
-Clean accuracy нормализатора: **96.32%**.
-Подробнее: [reports/plan_synthetic_real_data.md](../reports/plan_synthetic_real_data.md)
+### Clean/noisy split
+
+Колонка `noise_level` определяет качество ASR:
+
+| Split | Строк | Доля  | Current parser | Sequence parser |
+| ----- | ----- | ----- | -------------- | --------------- |
+| Clean | 4 853 | 29.4% | 95.87%         | 95.87%          |
+| Noisy | 11 647| 70.6% | 2.93%          | 3.99%           |
+| Total | 16 500| 100%  | 29.48%         | 31.03%          |
+
+Noisy accuracy — принципиальное ограничение rule-based подхода.
+Исправляется только T5.
 
 ## 3. `data/real.f` — реальные данные (165 строк)
 
 Собран из Wikipedia API + RSS-лент новостей.
+Содержит ASR-шум и пунктуацию, прилипшую к токенам.
 
 | Разряд  | Доля       |
 | ------- | ---------- |
@@ -49,20 +57,36 @@ Clean accuracy нормализатора: **96.32%**.
 | 3-digit | 11%        |
 | 4-digit | 34% (годы) |
 
+Accuracy: **55.81%** (оба парсера).
+Основная причина — пунктуация, прилипшая к токенам (22% ошибок).
+
 ## Сравнение датасетов
 
 | Датасет       | Строк  | Clean (для обучения) | Train (90%) | Test (10%) |
 | ------------- | ------ | -------------------- | ----------- | ---------- |
 | calibration.f | 500    | —                    | —           | —          |
-| synthetic.f   | 16 500 | 7 392                | 6 653       | 739        |
+| synthetic.f   | 16 500 | 4 853                | 4 367       | 486        |
 | real.f        | 165    | 165                  | —           | —          |
 
 ## Генерация синтетики
 
 ```bash
-make synthetic          # через Docker
-make synthetic-local    # через .venv
-make evaluate-synthetic # accuracy на синтетике
+make synthetic           # через Docker
+make synthetic-local     # через .venv
+make evaluate-synthetic  # accuracy на синтетике
+make evaluate-real       # accuracy на реальных данных
 ```
+
+## Анализ ошибок на real.f
+
+| Категория           | Доля  | Пример                          |
+| ------------------- | ----- | ------------------------------- |
+| Пунктуация          | 22%   | "200," / ".300"                 |
+| Десятки+единицы     | 14%   | "двадцать один" → 21 (раздельно)|
+| Дефисы              | 12%   | "двести-триста"                 |
+| Decimal comma       | 9%    | "3,5" вместо "3.5"              |
+| Time format         | 6%    | "15 30" → часы                  |
+| Context false pos.  | 13%   | "номер сорок" (одежды, не число)|
+| Прочее              | 23%   | ASR искажения, редкие формы     |
 
 Подробнее: [scripts/generate_synthetic.py](../scripts/generate_synthetic.py)
