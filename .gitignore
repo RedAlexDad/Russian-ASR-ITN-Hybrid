@@ -10,7 +10,7 @@ env/
 
 # Data (large binary files, downloaded separately)
 data/
-answer.f
+!answer.f
 
 # Jupyter
 .ipynb_checkpoints/
