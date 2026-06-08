@@ -16,6 +16,9 @@ answer.f
 .ipynb_checkpoints/
 *_checkpoint.ipynb
 
+# Chat history
+*.chat
+
 # OS
 .DS_Store
 Thumbs.db
